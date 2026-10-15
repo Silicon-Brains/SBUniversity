@@ -1,0 +1,254 @@
+"use client";
+import { UserButton } from "@clerk/nextjs";
+import clsx from "clsx";
+import {
+  Award,
+  BarChart3,
+  BookOpen,
+  Bot,
+  CheckSquare,
+  ClipboardCheck,
+  ClipboardList,
+  FileCheck,
+  FileText,
+  GraduationCap,
+  IdCard,
+  LayoutDashboard,
+  LogOut,
+  Megaphone,
+  Menu,
+  Sparkles,
+  Trophy,
+  Users,
+  X,
+  type LucideIcon,
+} from "lucide-react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { useEffect, useState, type ReactNode } from "react";
+import { demoSignOut } from "@/lib/actions";
+import { ToastProvider } from "@/components/ui/Toast";
+import { AarshFloatingWidget } from "@/components/features/AarshFloatingWidget";
+
+type Role = "student" | "teacher" | "admin";
+
+const ROLE_HOMES: Record<Role, string> = {
+  student: "/student/dashboard",
+  teacher: "/teacher/dashboard",
+  admin: "/admin/users",
+};
+
+interface NavItem {
+  href: string;
+  label: string;
+  icon: LucideIcon;
+  badge?: string;
+}
+
+const NAV: Record<Role, NavItem[]> = {
+  student: [
+    { href: "/student/dashboard", label: "Dashboard", icon: LayoutDashboard },
+    { href: "/student/exams", label: "Exams", icon: FileText },
+    { href: "/student/tasks", label: "My Tasks & Points", icon: ClipboardList },
+    { href: "/student/results", label: "My Results", icon: FileCheck },
+    { href: "/student/certificates", label: "Certificates", icon: Award },
+    { href: "/student/profile", label: "Virtual ID Card", icon: IdCard },
+    { href: "/ranking", label: "Live Ranking", icon: Trophy, badge: "Top 4" },
+    { href: "/notices", label: "Notice Board", icon: Megaphone },
+    { href: "/assistant", label: "Aarsh AI", icon: Bot, badge: "AI" },
+  ],
+  teacher: [
+    { href: "/teacher/dashboard", label: "Dashboard", icon: LayoutDashboard },
+    { href: "/teacher/exams", label: "Manage Exams", icon: FileText },
+    { href: "/teacher/tasks", label: "Task Approvals", icon: ClipboardCheck },
+    { href: "/ranking", label: "Live Ranking", icon: Trophy },
+    { href: "/notices", label: "Notices", icon: Megaphone },
+    { href: "/assistant", label: "Aarsh AI", icon: Bot },
+  ],
+  admin: [
+    { href: "/admin/users", label: "User Control", icon: Users },
+    { href: "/admin/progress", label: "Progress Check", icon: BookOpen },
+    { href: "/admin/analytics", label: "Live Analytics", icon: BarChart3 },
+    { href: "/admin/notices", label: "Notice Control", icon: Megaphone },
+    { href: "/ranking", label: "Live Ranking", icon: Trophy },
+    { href: "/assistant", label: "Aarsh AI", icon: Bot },
+  ],
+};
+
+export function Shell({ role, name, demo, children }: { role: Role; name: string; demo: boolean; children: ReactNode }) {
+  const [open, setOpen] = useState(false);
+  const path = usePathname();
+
+  useEffect(() => {
+    setOpen(false);
+  }, [path]);
+
+  const nav = (
+    <nav aria-label="Main Navigation" className="flex flex-col gap-1.5 px-3 py-4">
+      {NAV[role].map(({ href, label, icon: Icon, badge }) => {
+        const active = path === href || path.startsWith(href + "/");
+        return (
+          <Link
+            key={href}
+            href={href}
+            aria-current={active ? "page" : undefined}
+            className={clsx(
+              "group flex h-11 items-center gap-3 rounded-lg px-3.5 text-sm transition-all duration-150",
+              active
+                ? "bg-cream-200 text-green-900 font-semibold shadow-sm"
+                : "text-cream-100/90 hover:bg-green-600 hover:text-cream-50"
+            )}
+          >
+            <Icon
+              size={19}
+              strokeWidth={active ? 2.25 : 1.75}
+              className={clsx(active ? "text-green-900" : "text-cream-200/90 group-hover:text-cream-100")}
+              aria-hidden
+            />
+            <span className="truncate">{label}</span>
+
+            {badge && !active && (
+              <span className="ml-auto rounded-full bg-green-900/60 px-2 py-0.5 text-[10px] font-medium text-cream-200">
+                {badge}
+              </span>
+            )}
+
+            {/* In the design system, active pill has a small bordo-700 dot inside the cream pill */}
+            {active && (
+              <span
+                className="ml-auto h-2 w-2 rounded-full bg-bordo-700 shadow-sm"
+                title="Current page"
+                aria-hidden
+              />
+            )}
+          </Link>
+        );
+      })}
+    </nav>
+  );
+
+  return (
+    <ToastProvider>
+      <div className="min-h-dvh bg-cream-50 lg:pl-64">
+        {/* Deep Green Heritage Sidebar (30% secondary brand structure) */}
+        <aside
+          className={clsx(
+            "fixed inset-y-0 left-0 z-40 flex w-64 flex-col bg-green-700 text-cream-100 shadow-lg transition-transform duration-200 lg:translate-x-0",
+            open ? "translate-x-0" : "-translate-x-full"
+          )}
+        >
+          {/* Logo & Crest */}
+          <div className="flex h-16 items-center justify-between border-b border-green-900/40 px-5">
+            <Link href="/" className="flex items-center gap-2.5">
+              <span className="grid h-9 w-9 place-items-center rounded-lg bg-cream-200 text-green-900 shadow-sm">
+                <GraduationCap size={20} aria-hidden />
+              </span>
+              <div>
+                <span className="block font-heading text-lg font-bold leading-tight text-cream-50">
+                  SBUniversity
+                </span>
+                <span className="block text-[10px] font-medium uppercase tracking-wider text-cream-300">
+                  Academic Portal
+                </span>
+              </div>
+            </Link>
+            <button
+              onClick={() => setOpen(false)}
+              className="rounded-lg p-1 text-cream-200 hover:bg-green-600 lg:hidden"
+              aria-label="Close menu"
+            >
+              <X size={20} />
+            </button>
+          </div>
+
+          {/* Navigation Links */}
+          <div className="flex-1 overflow-y-auto py-2">
+            {nav}
+          </div>
+
+          {/* User Status Footer in Sidebar */}
+          <div className="border-t border-green-900/40 p-3.5">
+            <div className="flex items-center gap-3 rounded-lg bg-green-900/40 p-2.5">
+              <div className="grid h-8 w-8 place-items-center rounded-full bg-cream-200 font-heading text-xs font-bold text-green-900">
+                {name.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase()}
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-xs font-semibold text-cream-50">{name}</p>
+                <p className="text-[10px] uppercase tracking-wider text-cream-300">{role}</p>
+              </div>
+            </div>
+          </div>
+        </aside>
+
+        {/* Mobile backdrop */}
+        {open && (
+          <button
+            aria-label="Close menu"
+            className="fixed inset-0 z-30 bg-green-900/60 backdrop-blur-sm lg:hidden"
+            onClick={() => setOpen(false)}
+          />
+        )}
+
+        {/* Top Header Bar */}
+        <header className="sticky top-0 z-20 flex h-16 items-center gap-3 border-b border-cream-300 bg-white/95 px-4 backdrop-blur sm:px-6">
+          <button
+            className="grid h-10 w-10 place-items-center rounded-lg text-green-700 hover:bg-green-50 lg:hidden"
+            aria-label={open ? "Close menu" : "Open menu"}
+            onClick={() => setOpen(!open)}
+          >
+            {open ? <X size={22} /> : <Menu size={22} />}
+          </button>
+
+          {/* Quick breadcrumb / brand hint */}
+          <div className="flex items-center gap-2 text-sm">
+            <span className="font-heading font-semibold text-green-900 capitalize">
+              {role} Portal
+            </span>
+            <span className="text-cream-300">/</span>
+            <span className="truncate text-xs text-ink-muted">
+              {NAV[role].find((n) => path === n.href || path.startsWith(n.href + "/"))?.label ?? "Overview"}
+            </span>
+          </div>
+
+          <div className="flex-1" />
+
+          {/* AI Shortcut button */}
+          <Link
+            href="/assistant"
+            className="hidden items-center gap-1.5 rounded-full border border-green-700/30 bg-green-50 px-3 py-1 text-xs font-medium text-green-700 transition-colors hover:bg-green-100 sm:inline-flex"
+          >
+            <Sparkles size={14} className="text-bordo-700" />
+            <span>Aarsh AI</span>
+          </Link>
+
+          {/* User profile dropdown / signout */}
+          <div className="hidden text-right sm:block">
+            <p className="text-sm font-semibold text-green-900">{name}</p>
+            <p className="text-[11px] capitalize text-ink-muted">{role}</p>
+          </div>
+
+          {demo ? (
+            <form action={demoSignOut}>
+              <button
+                className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-cream-300 px-3 text-xs font-semibold text-green-700 transition-colors hover:bg-cream-100"
+              >
+                <LogOut size={14} aria-hidden />
+                <span>Sign out</span>
+              </button>
+            </form>
+          ) : (
+            <UserButton afterSignOutUrl="/" />
+          )}
+        </header>
+
+        {/* Main Content Area */}
+        <main className="mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-8">
+          {children}
+        </main>
+
+        {/* Floating Aarsh AI Assistant accessible on all pages */}
+        <AarshFloatingWidget userRole={role} userName={name} />
+      </div>
+    </ToastProvider>
+  );
+}
