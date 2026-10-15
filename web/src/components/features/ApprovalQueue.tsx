@@ -1,0 +1,196 @@
+"use client";
+
+import React, { useCallback, useEffect, useState } from "react";
+import { useAuth } from "@clerk/nextjs";
+import { Button } from "@/components/ui/Button";
+import { Card } from "@/components/ui/Card";
+import { PointsChip, Badge } from "@/components/ui/Badge";
+import { useToast } from "@/components/ui/Toast";
+import { api, getDevAuthToken } from "@/lib/api";
+import {
+  Check,
+  X,
+  ExternalLink,
+  FileText,
+  CheckCircle2,
+  Loader2,
+  Clock,
+} from "lucide-react";
+
+export interface PendingTaskReview {
+  id: string;
+  task_id: string;
+  student_id: string;
+  task_title?: string;
+  student_name?: string;
+  points_awarded: number;
+  status: string;
+  submission_note?: string | null;
+  submission_url?: string | null;
+  submitted_at?: string | null;
+}
+
+export function ApprovalQueue({ initial }: { initial?: PendingTaskReview[] }) {
+  const { getToken } = useAuth();
+  const toast = useToast();
+
+  const [rows, setRows] = useState<PendingTaskReview[]>(initial ?? []);
+  const [loading, setLoading] = useState(!initial || initial.length === 0);
+  const [processingId, setProcessingId] = useState<string | null>(null);
+
+  const resolveToken = useCallback(async () => {
+    let token = await getToken();
+    if (!token && (process.env.NEXT_PUBLIC_DEMO_MODE === "true" || process.env.NODE_ENV === "development")) {
+      token = getDevAuthToken("teacher");
+    }
+    return token;
+  }, [getToken]);
+
+  const loadPending = useCallback(async () => {
+    setLoading(true);
+    try {
+      const token = await resolveToken();
+      const data = await api<PendingTaskReview[]>("/tasks/reviews", token ?? undefined).catch(() => []);
+      setRows(data || []);
+    } catch (err) {
+      console.error("Failed to load review queue:", err);
+    } finally {
+      setLoading(false);
+    }
+  }, [resolveToken]);
+
+  useEffect(() => {
+    loadPending();
+  }, [loadPending]);
+
+  const decide = async (item: PendingTaskReview, approve: boolean) => {
+    setProcessingId(item.id);
+    try {
+      const token = await resolveToken();
+      await api(
+        `/tasks/completions/${item.id}/review`,
+        token ?? undefined,
+        {
+          method: "POST",
+          body: JSON.stringify({
+            action: approve ? "approve" : "reject",
+            feedback: approve ? "Approved by faculty." : "Needs revision.",
+          }),
+        }
+      );
+
+      setRows((r) => r.filter((x) => x.id !== item.id));
+      toast(
+        approve
+          ? `Approved "${item.task_title || "Task"}". +${item.points_awarded} Task Points credited to ${item.student_name}!`
+          : `Submission from ${item.student_name} rejected.`
+      );
+    } catch (err: any) {
+      toast(err?.message || "Failed to process review.");
+    } finally {
+      setProcessingId(null);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex h-56 items-center justify-center rounded-2xl border border-cream-300 bg-white">
+        <Loader2 className="h-8 w-8 animate-spin text-green-700" />
+      </div>
+    );
+  }
+
+  if (!rows.length) {
+    return (
+      <Card className="py-16 text-center">
+        <div className="mx-auto mb-3 grid h-12 w-12 place-items-center rounded-full bg-green-50 text-green-700">
+          <CheckCircle2 size={24} />
+        </div>
+        <h3 className="font-heading text-lg font-bold text-green-900">
+          Approval Queue is Empty
+        </h3>
+        <p className="mt-1 text-sm text-ink-muted">
+          All student lab and assignment submissions have been reviewed and awarded.
+        </p>
+      </Card>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between text-xs text-ink-muted px-1">
+        <span>{rows.length} pending student submission{rows.length !== 1 ? "s" : ""}</span>
+        <span>Approving instantly updates student points on the Live Ranking</span>
+      </div>
+
+      {rows.map((s) => {
+        const student = s.student_name || "Student";
+        const task = s.task_title || "Course Assignment";
+
+        return (
+          <Card
+            key={s.id}
+            className="flex flex-col justify-between gap-4 p-5 transition-all hover:shadow-md sm:flex-row sm:items-center"
+          >
+            <div className="min-w-0 space-y-1">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="font-heading text-base font-bold text-green-900">
+                  {student}
+                </span>
+                <span className="text-ink-muted">·</span>
+                <span className="text-xs font-semibold text-green-700">{task}</span>
+              </div>
+
+              {s.submission_note && (
+                <p className="flex items-center gap-1.5 text-xs text-ink-muted">
+                  <FileText size={13} className="text-green-700 shrink-0" />
+                  <span className="truncate max-w-md">{s.submission_note}</span>
+                </p>
+              )}
+
+              {s.submission_url && (
+                <div className="pt-0.5">
+                  <a
+                    href={s.submission_url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-1 text-xs font-semibold text-green-700 hover:underline"
+                  >
+                    <span>View Submission Project</span>
+                    <ExternalLink size={11} />
+                  </a>
+                </div>
+              )}
+            </div>
+
+            <div className="flex items-center gap-3 pt-2 sm:pt-0 shrink-0">
+              <PointsChip points={s.points_awarded} />
+              <Button
+                variant="danger"
+                size="sm"
+                onClick={() => decide(s, false)}
+                disabled={processingId === s.id}
+              >
+                <X size={14} /> Reject
+              </Button>
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={() => decide(s, true)}
+                disabled={processingId === s.id}
+              >
+                {processingId === s.id ? (
+                  <Loader2 size={14} className="animate-spin" />
+                ) : (
+                  <>
+                    <Check size={14} /> Approve (+{s.points_awarded} pts)
+                  </>
+                )}
+              </Button>
+            </div>
+          </Card>
+        );
+      })}
+    </div>
+  );
+}

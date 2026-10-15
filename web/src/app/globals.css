@@ -1,0 +1,10 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root { color-scheme: light; }
+html { scroll-padding-top: 5rem; }
+body { @apply bg-cream-50 text-ink antialiased font-sans; }
+h1, h2, h3, h4 { @apply font-heading text-green-700; }
+:focus-visible { @apply outline-none ring-2 ring-green-700 ring-offset-2 ring-offset-cream-50; }
+@media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }

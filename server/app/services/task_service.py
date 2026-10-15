@@ -1,0 +1,248 @@
+import uuid
+from datetime import datetime, timezone
+from typing import List, Optional, Tuple
+from fastapi import HTTPException, status
+from sqlalchemy.ext.asyncio import AsyncSession
+from app.core.logging import logger
+from app.db.models.course import Course
+from app.db.models.task import CompletionStatus, Task, TaskCompletion, TaskStatus, TaskType, TaskVerification
+from app.db.models.user import User, UserRole
+from app.repositories.audit_repository import AuditRepository
+from app.repositories.course_repository import CourseRepository
+from app.repositories.task_repository import TaskRepository
+from app.repositories.user_repository import UserRepository
+from app.schemas.task import StudentPointsResponse, TaskCreate, TaskPointsHistoryItem, TaskUpdate
+from app.services.ranking_service import RankingService
+
+
+class TaskService:
+    def __init__(self, db: AsyncSession):
+        self.db = db
+        self.task_repo = TaskRepository(db)
+        self.course_repo = CourseRepository(db)
+        self.user_repo = UserRepository(db)
+        self.audit_repo = AuditRepository(db)
+        self.ranking_service = RankingService(db)
+
+    async def create_assignment_task(self, data: TaskCreate, creator: User) -> Task:
+        # Check course ownership if teacher
+        course = await self.course_repo.get_by_id(data.course_id)
+        if not course:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Course not found")
+
+        if creator.role == UserRole.TEACHER and course.teacher_id != creator.id:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You can only create tasks for your own courses")
+
+        task = Task(
+            course_id=data.course_id,
+            created_by=creator.id,
+            type=TaskType.ASSIGNMENT,
+            exam_id=None,
+            title=data.title,
+            description=data.description,
+            points=data.points,
+            verification=TaskVerification.TEACHER_APPROVAL,
+            due_at=data.due_at,
+            status=TaskStatus.ACTIVE,
+        )
+        return await self.task_repo.create(task)
+
+    async def update_task(self, task_id: uuid.UUID, data: TaskUpdate, user: User) -> Task:
+        task = await self.task_repo.get_by_id(task_id)
+        if not task:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Task not found")
+
+        course = await self.course_repo.get_by_id(task.course_id)
+        if user.role == UserRole.TEACHER and course and course.teacher_id != user.id:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Cannot edit tasks from another teacher's course")
+
+        if data.title is not None:
+            task.title = data.title
+        if data.description is not None:
+            task.description = data.description
+        if data.due_at is not None:
+            task.due_at = data.due_at
+
+        return await self.task_repo.update(task)
+
+    async def archive_task(self, task_id: uuid.UUID, user: User) -> Task:
+        task = await self.task_repo.get_by_id(task_id)
+        if not task:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Task not found")
+
+        course = await self.course_repo.get_by_id(task.course_id)
+        if user.role == UserRole.TEACHER and course and course.teacher_id != user.id:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Cannot archive tasks from another teacher's course")
+
+        task.status = TaskStatus.ARCHIVED
+        return await self.task_repo.update(task)
+
+    async def submit_assignment(self, task_id: uuid.UUID, student_id: uuid.UUID, note: Optional[str], url: Optional[str]) -> TaskCompletion:
+        task = await self.task_repo.get_by_id(task_id)
+        if not task:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Task not found")
+        if task.type != TaskType.ASSIGNMENT:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Only assignment tasks can be submitted manually")
+        if task.status != TaskStatus.ACTIVE:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="This task is not active")
+
+        # Check existing completion
+        completion = await self.task_repo.get_completion(task_id, student_id)
+        now = datetime.now(timezone.utc)
+        if completion:
+            if completion.status == CompletionStatus.COMPLETED:
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Task is already completed")
+            # Update submission
+            completion.submission_note = note
+            completion.submission_url = url
+            completion.status = CompletionStatus.PENDING_REVIEW
+            completion.submitted_at = now
+        else:
+            completion = TaskCompletion(
+                task_id=task_id,
+                student_id=student_id,
+                status=CompletionStatus.PENDING_REVIEW,
+                submission_note=note,
+                submission_url=url,
+                points_awarded=0,
+                submitted_at=now,
+            )
+            self.db.add(completion)
+
+        await self.db.commit()
+        await self.db.refresh(completion)
+        return completion
+
+    async def approve_assignment(self, completion_id: uuid.UUID, reviewer: User, review_note: Optional[str]) -> TaskCompletion:
+        completion = await self.task_repo.get_completion_by_id(completion_id)
+        if not completion:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Task completion record not found")
+
+        task = completion.task
+        course = await self.course_repo.get_by_id(task.course_id)
+        if reviewer.role == UserRole.TEACHER and course and course.teacher_id != reviewer.id:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You can only approve tasks for your own courses")
+
+        now = datetime.now(timezone.utc)
+        completion.status = CompletionStatus.COMPLETED
+        completion.points_awarded = task.points
+        completion.completed_at = now
+        completion.reviewed_by = reviewer.id
+        completion.reviewed_at = now
+        completion.review_note = review_note
+
+        await self.db.commit()
+        await self.db.refresh(completion)
+
+        # Refresh student ranking immediately
+        await self.ranking_service.refresh_student(completion.student_id)
+        return completion
+
+    async def reject_assignment(self, completion_id: uuid.UUID, reviewer: User, review_note: Optional[str]) -> TaskCompletion:
+        completion = await self.task_repo.get_completion_by_id(completion_id)
+        if not completion:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Task completion record not found")
+
+        task = completion.task
+        course = await self.course_repo.get_by_id(task.course_id)
+        if reviewer.role == UserRole.TEACHER and course and course.teacher_id != reviewer.id:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You can only review tasks for your own courses")
+
+        now = datetime.now(timezone.utc)
+        completion.status = CompletionStatus.REJECTED
+        completion.points_awarded = 0
+        completion.reviewed_by = reviewer.id
+        completion.reviewed_at = now
+        completion.review_note = review_note
+
+        await self.db.commit()
+        await self.db.refresh(completion)
+        return completion
+
+    async def complete_exam_task_if_passed(self, exam_id: uuid.UUID, student_id: uuid.UUID) -> int:
+        """
+        Called inside the exam grading process.
+        Returns the points awarded (0 if already completed or exam has no points).
+        """
+        task = await self.task_repo.get_by_exam_id(exam_id)
+        if not task or task.points <= 0 or task.status != TaskStatus.ACTIVE:
+            return 0
+
+        existing = await self.task_repo.get_completion(task.id, student_id)
+        if existing and existing.status == CompletionStatus.COMPLETED:
+            return 0  # Already awarded once
+
+        now = datetime.now(timezone.utc)
+        if existing:
+            existing.status = CompletionStatus.COMPLETED
+            existing.points_awarded = task.points
+            existing.completed_at = now
+        else:
+            comp = TaskCompletion(
+                task_id=task.id,
+                student_id=student_id,
+                status=CompletionStatus.COMPLETED,
+                points_awarded=task.points,
+                submitted_at=now,
+                completed_at=now,
+            )
+            self.db.add(comp)
+
+        # Let the caller commit the transaction
+        return task.points
+
+    async def revoke_completion(self, completion_id: uuid.UUID, admin: User, reason: Optional[str]) -> TaskCompletion:
+        if admin.role != UserRole.ADMIN:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Only admins can revoke task completions")
+
+        completion = await self.task_repo.get_completion_by_id(completion_id)
+        if not completion:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Completion not found")
+
+        now = datetime.now(timezone.utc)
+        old_points = completion.points_awarded
+        completion.status = CompletionStatus.REVOKED
+        completion.points_awarded = 0
+        completion.revoked_by = admin.id
+        completion.revoked_at = now
+
+        await self.audit_repo.log(
+            actor_id=admin.id,
+            action="task_completion.revoked",
+            entity_type="task_completion",
+            entity_id=str(completion.id),
+            metadata={"student_id": str(completion.student_id), "revoked_points": old_points, "reason": reason},
+        )
+
+        await self.db.commit()
+        await self.db.refresh(completion)
+
+        # Refresh student ranking immediately to remove points
+        await self.ranking_service.refresh_student(completion.student_id)
+        return completion
+
+    async def get_student_points(self, student_id: uuid.UUID) -> StudentPointsResponse:
+        total_pts, tasks_cnt, _ = await self.task_repo.get_student_points_summary(student_id)
+        rank_resp = await self.ranking_service.get_student_rank(student_id)
+
+        completions = await self.task_repo.list_student_completions(student_id)
+        history: List[TaskPointsHistoryItem] = []
+        for c in completions:
+            if c.status == CompletionStatus.COMPLETED and c.completed_at:
+                history.append(
+                    TaskPointsHistoryItem(
+                        completion_id=c.id,
+                        task_id=c.task_id,
+                        task_title=c.task.title if c.task else "Task",
+                        course_title=c.task.course.title if c.task and c.task.course else "Course",
+                        points=c.points_awarded,
+                        completed_at=c.completed_at,
+                    )
+                )
+
+        return StudentPointsResponse(
+            total_points=total_pts,
+            tasks_completed=tasks_cnt,
+            rank=rank_resp.rank,
+            history=history,
+        )

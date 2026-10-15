@@ -1,0 +1,456 @@
+-- =============================================================================
+-- SBUniversity Production Supabase PostgreSQL Schema Migration
+-- Source of Truth: Docs/database.md & Docs/architecture.md
+-- =============================================================================
+
+-- 1. EXTENSIONS
+CREATE EXTENSION IF NOT EXISTS "pgcrypto";
+CREATE EXTENSION IF NOT EXISTS "citext";
+
+-- 2. CUSTOM ENUMS
+DO $$ BEGIN
+    CREATE TYPE user_role AS ENUM ('student', 'teacher', 'admin');
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+DO $$ BEGIN
+    CREATE TYPE user_status AS ENUM ('active', 'suspended', 'deleted');
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+DO $$ BEGIN
+    CREATE TYPE enrollment_status AS ENUM ('active', 'completed', 'dropped');
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+DO $$ BEGIN
+    CREATE TYPE exam_status AS ENUM ('draft', 'published', 'closed');
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+DO $$ BEGIN
+    CREATE TYPE attempt_status AS ENUM ('in_progress', 'submitted', 'auto_submitted');
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+DO $$ BEGIN
+    CREATE TYPE notice_audience AS ENUM ('all', 'students', 'teachers', 'course');
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+DO $$ BEGIN
+    CREATE TYPE notice_priority AS ENUM ('normal', 'important', 'urgent');
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+DO $$ BEGIN
+    CREATE TYPE notice_status AS ENUM ('draft', 'published', 'archived');
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+DO $$ BEGIN
+    CREATE TYPE chat_role AS ENUM ('user', 'model');
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+DO $$ BEGIN
+    CREATE TYPE task_type AS ENUM ('exam', 'assignment');
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+DO $$ BEGIN
+    CREATE TYPE task_verification AS ENUM ('auto', 'teacher_approval');
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+DO $$ BEGIN
+    CREATE TYPE task_status AS ENUM ('active', 'archived');
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+DO $$ BEGIN
+    CREATE TYPE completion_status AS ENUM ('pending_review', 'completed', 'rejected', 'revoked');
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+-- 3. UPDATED_AT TRIGGER FUNCTION
+CREATE OR REPLACE FUNCTION trigger_set_timestamp()
+RETURNS TRIGGER AS $$
+BEGIN
+  NEW.updated_at = NOW();
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- 4. TABLES
+
+-- 4.1 users
+CREATE TABLE IF NOT EXISTS public.users (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    clerk_user_id TEXT UNIQUE NOT NULL,
+    email CITEXT UNIQUE NOT NULL,
+    full_name TEXT NOT NULL,
+    avatar_url TEXT NULL,
+    role user_role NOT NULL DEFAULT 'student',
+    status user_status NOT NULL DEFAULT 'active',
+    last_seen_at TIMESTAMPTZ NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_users_role ON public.users(role);
+CREATE INDEX IF NOT EXISTS idx_users_status ON public.users(status);
+CREATE INDEX IF NOT EXISTS idx_users_lower_full_name ON public.users(LOWER(full_name));
+
+DROP TRIGGER IF EXISTS set_timestamp_users ON public.users;
+CREATE TRIGGER set_timestamp_users
+BEFORE UPDATE ON public.users
+FOR EACH ROW EXECUTE FUNCTION trigger_set_timestamp();
+
+-- 4.2 departments
+CREATE TABLE IF NOT EXISTS public.departments (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    code TEXT UNIQUE NOT NULL,
+    name TEXT UNIQUE NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- 4.3 student_profiles
+CREATE TABLE IF NOT EXISTS public.student_profiles (
+    user_id UUID PRIMARY KEY REFERENCES public.users(id) ON DELETE CASCADE,
+    student_code TEXT UNIQUE NOT NULL,
+    department_id UUID NULL REFERENCES public.departments(id) ON DELETE SET NULL,
+    batch_year INT NULL,
+    phone TEXT NULL,
+    date_of_birth DATE NULL,
+    photo_path TEXT NULL,
+    id_valid_until DATE NULL,
+    qr_token TEXT UNIQUE NOT NULL DEFAULT encode(gen_random_bytes(16), 'hex'),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+DROP TRIGGER IF EXISTS set_timestamp_student_profiles ON public.student_profiles;
+CREATE TRIGGER set_timestamp_student_profiles
+BEFORE UPDATE ON public.student_profiles
+FOR EACH ROW EXECUTE FUNCTION trigger_set_timestamp();
+
+-- 4.4 teacher_profiles
+CREATE TABLE IF NOT EXISTS public.teacher_profiles (
+    user_id UUID PRIMARY KEY REFERENCES public.users(id) ON DELETE CASCADE,
+    employee_code TEXT UNIQUE NOT NULL,
+    department_id UUID NULL REFERENCES public.departments(id) ON DELETE SET NULL,
+    designation TEXT NULL,
+    bio TEXT NULL,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+DROP TRIGGER IF EXISTS set_timestamp_teacher_profiles ON public.teacher_profiles;
+CREATE TRIGGER set_timestamp_teacher_profiles
+BEFORE UPDATE ON public.teacher_profiles
+FOR EACH ROW EXECUTE FUNCTION trigger_set_timestamp();
+
+-- 4.5 courses
+CREATE TABLE IF NOT EXISTS public.courses (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    code TEXT UNIQUE NOT NULL,
+    title TEXT NOT NULL,
+    description TEXT NULL,
+    department_id UUID NULL REFERENCES public.departments(id) ON DELETE SET NULL,
+    teacher_id UUID NOT NULL REFERENCES public.users(id) ON DELETE RESTRICT,
+    is_published BOOLEAN NOT NULL DEFAULT FALSE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_courses_teacher_id ON public.courses(teacher_id);
+CREATE INDEX IF NOT EXISTS idx_courses_department_id ON public.courses(department_id);
+
+DROP TRIGGER IF EXISTS set_timestamp_courses ON public.courses;
+CREATE TRIGGER set_timestamp_courses
+BEFORE UPDATE ON public.courses
+FOR EACH ROW EXECUTE FUNCTION trigger_set_timestamp();
+
+-- 4.6 enrollments
+CREATE TABLE IF NOT EXISTS public.enrollments (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    student_id UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
+    course_id UUID NOT NULL REFERENCES public.courses(id) ON DELETE CASCADE,
+    status enrollment_status NOT NULL DEFAULT 'active',
+    progress_percent NUMERIC(5,2) NOT NULL DEFAULT 0.00 CHECK (progress_percent >= 0 AND progress_percent <= 100),
+    enrolled_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    completed_at TIMESTAMPTZ NULL,
+    CONSTRAINT uq_enrollment_student_course UNIQUE (student_id, course_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_enrollments_student_id ON public.enrollments(student_id);
+CREATE INDEX IF NOT EXISTS idx_enrollments_course_id ON public.enrollments(course_id);
+
+-- 4.7 exams
+CREATE TABLE IF NOT EXISTS public.exams (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    course_id UUID NOT NULL REFERENCES public.courses(id) ON DELETE CASCADE,
+    created_by UUID NOT NULL REFERENCES public.users(id) ON DELETE RESTRICT,
+    title TEXT NOT NULL,
+    instructions TEXT NULL,
+    duration_minutes INT NOT NULL CHECK (duration_minutes > 0),
+    total_marks NUMERIC(7,2) NOT NULL DEFAULT 0.00 CHECK (total_marks >= 0),
+    pass_marks NUMERIC(7,2) NOT NULL DEFAULT 0.00 CHECK (pass_marks >= 0 AND pass_marks <= total_marks),
+    negative_marking NUMERIC(4,2) NOT NULL DEFAULT 0.00 CHECK (negative_marking >= 0),
+    max_attempts INT NOT NULL DEFAULT 1 CHECK (max_attempts > 0),
+    shuffle_questions BOOLEAN NOT NULL DEFAULT TRUE,
+    show_review BOOLEAN NOT NULL DEFAULT TRUE,
+    start_at TIMESTAMPTZ NOT NULL,
+    end_at TIMESTAMPTZ NOT NULL,
+    status exam_status NOT NULL DEFAULT 'draft',
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    CONSTRAINT ck_exam_window CHECK (end_at > start_at)
+);
+
+CREATE INDEX IF NOT EXISTS idx_exams_course_status ON public.exams(course_id, status);
+CREATE INDEX IF NOT EXISTS idx_exams_window ON public.exams(start_at, end_at);
+
+DROP TRIGGER IF EXISTS set_timestamp_exams ON public.exams;
+CREATE TRIGGER set_timestamp_exams
+BEFORE UPDATE ON public.exams
+FOR EACH ROW EXECUTE FUNCTION trigger_set_timestamp();
+
+-- 4.8 questions
+CREATE TABLE IF NOT EXISTS public.questions (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    exam_id UUID NOT NULL REFERENCES public.exams(id) ON DELETE CASCADE,
+    text TEXT NOT NULL,
+    marks NUMERIC(5,2) NOT NULL DEFAULT 1.00 CHECK (marks > 0),
+    position INT NOT NULL,
+    explanation TEXT NULL,
+    CONSTRAINT uq_question_exam_position UNIQUE (exam_id, position)
+);
+
+CREATE INDEX IF NOT EXISTS idx_questions_exam_id ON public.questions(exam_id);
+
+-- 4.9 question_options
+CREATE TABLE IF NOT EXISTS public.question_options (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    question_id UUID NOT NULL REFERENCES public.questions(id) ON DELETE CASCADE,
+    text TEXT NOT NULL,
+    is_correct BOOLEAN NOT NULL DEFAULT FALSE,
+    position INT NOT NULL,
+    CONSTRAINT uq_option_question_position UNIQUE (question_id, position)
+);
+
+CREATE INDEX IF NOT EXISTS idx_question_options_question_id ON public.question_options(question_id);
+
+-- Guarantee exactly one correct option per question
+CREATE UNIQUE INDEX IF NOT EXISTS uq_question_single_correct_option 
+ON public.question_options(question_id) 
+WHERE is_correct = TRUE;
+
+-- 4.10 exam_attempts
+CREATE TABLE IF NOT EXISTS public.exam_attempts (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    exam_id UUID NOT NULL REFERENCES public.exams(id) ON DELETE RESTRICT,
+    student_id UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
+    attempt_no INT NOT NULL DEFAULT 1 CHECK (attempt_no > 0),
+    status attempt_status NOT NULL DEFAULT 'in_progress',
+    started_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    expires_at TIMESTAMPTZ NOT NULL,
+    submitted_at TIMESTAMPTZ NULL,
+    CONSTRAINT uq_exam_student_attempt UNIQUE (exam_id, student_id, attempt_no)
+);
+
+CREATE INDEX IF NOT EXISTS idx_exam_attempts_student ON public.exam_attempts(student_id);
+CREATE INDEX IF NOT EXISTS idx_exam_attempts_exam ON public.exam_attempts(exam_id);
+CREATE INDEX IF NOT EXISTS idx_exam_attempts_student_active ON public.exam_attempts(student_id) WHERE status = 'in_progress';
+
+-- 4.11 attempt_answers
+CREATE TABLE IF NOT EXISTS public.attempt_answers (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    attempt_id UUID NOT NULL REFERENCES public.exam_attempts(id) ON DELETE CASCADE,
+    question_id UUID NOT NULL REFERENCES public.questions(id) ON DELETE CASCADE,
+    selected_option_id UUID NULL REFERENCES public.question_options(id) ON DELETE SET NULL,
+    answered_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    CONSTRAINT uq_attempt_question_answer UNIQUE (attempt_id, question_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_attempt_answers_attempt ON public.attempt_answers(attempt_id);
+
+-- 4.12 results
+CREATE TABLE IF NOT EXISTS public.results (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    attempt_id UUID UNIQUE NOT NULL REFERENCES public.exam_attempts(id) ON DELETE CASCADE,
+    exam_id UUID NOT NULL REFERENCES public.exams(id) ON DELETE CASCADE,
+    student_id UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
+    score NUMERIC(7,2) NOT NULL,
+    total_marks NUMERIC(7,2) NOT NULL,
+    percentage NUMERIC(5,2) NOT NULL,
+    grade TEXT NOT NULL,
+    passed BOOLEAN NOT NULL,
+    time_taken_sec INT NOT NULL,
+    rank_in_exam INT NULL,
+    pdf_path TEXT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_results_student ON public.results(student_id);
+CREATE INDEX IF NOT EXISTS idx_results_exam_score ON public.results(exam_id, score DESC, time_taken_sec ASC);
+
+-- 4.13 certificates
+CREATE TABLE IF NOT EXISTS public.certificates (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    certificate_code TEXT UNIQUE NOT NULL,
+    student_id UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
+    course_id UUID NOT NULL REFERENCES public.courses(id) ON DELETE CASCADE,
+    final_percentage NUMERIC(5,2) NOT NULL,
+    issued_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    revoked_at TIMESTAMPTZ NULL,
+    revoked_by UUID NULL REFERENCES public.users(id) ON DELETE SET NULL,
+    pdf_path TEXT NULL,
+    CONSTRAINT uq_certificate_student_course UNIQUE (student_id, course_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_certificates_student ON public.certificates(student_id);
+CREATE INDEX IF NOT EXISTS idx_certificates_code ON public.certificates(certificate_code);
+
+-- 4.14 tasks
+CREATE TABLE IF NOT EXISTS public.tasks (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    course_id UUID NOT NULL REFERENCES public.courses(id) ON DELETE CASCADE,
+    created_by UUID NOT NULL REFERENCES public.users(id) ON DELETE RESTRICT,
+    type task_type NOT NULL,
+    exam_id UUID NULL UNIQUE REFERENCES public.exams(id) ON DELETE RESTRICT,
+    title TEXT NOT NULL,
+    description TEXT NULL,
+    points INT NOT NULL CHECK (points >= 0),
+    verification task_verification NOT NULL,
+    due_at TIMESTAMPTZ NULL,
+    status task_status NOT NULL DEFAULT 'active',
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    CONSTRAINT ck_task_type_exam CHECK (
+        (type = 'exam' AND exam_id IS NOT NULL AND verification = 'auto') OR
+        (type = 'assignment' AND exam_id IS NULL AND verification = 'teacher_approval')
+    )
+);
+
+CREATE INDEX IF NOT EXISTS idx_tasks_course_status ON public.tasks(course_id, status);
+CREATE INDEX IF NOT EXISTS idx_tasks_created_by ON public.tasks(created_by);
+
+DROP TRIGGER IF EXISTS set_timestamp_tasks ON public.tasks;
+CREATE TRIGGER set_timestamp_tasks
+BEFORE UPDATE ON public.tasks
+FOR EACH ROW EXECUTE FUNCTION trigger_set_timestamp();
+
+-- 4.15 task_completions
+CREATE TABLE IF NOT EXISTS public.task_completions (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    task_id UUID NOT NULL REFERENCES public.tasks(id) ON DELETE RESTRICT,
+    student_id UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
+    status completion_status NOT NULL,
+    submission_note TEXT NULL,
+    submission_url TEXT NULL,
+    points_awarded INT NOT NULL DEFAULT 0 CHECK (points_awarded >= 0),
+    submitted_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    completed_at TIMESTAMPTZ NULL,
+    reviewed_by UUID NULL REFERENCES public.users(id) ON DELETE SET NULL,
+    reviewed_at TIMESTAMPTZ NULL,
+    review_note TEXT NULL,
+    revoked_by UUID NULL REFERENCES public.users(id) ON DELETE SET NULL,
+    revoked_at TIMESTAMPTZ NULL,
+    CONSTRAINT uq_task_student_completion UNIQUE (task_id, student_id),
+    CONSTRAINT ck_task_completion_completed CHECK (
+        (status = 'completed' AND completed_at IS NOT NULL) OR
+        (status != 'completed')
+    )
+);
+
+CREATE INDEX IF NOT EXISTS idx_task_completions_student ON public.task_completions(student_id, status);
+CREATE INDEX IF NOT EXISTS idx_task_completions_task ON public.task_completions(task_id, status);
+CREATE INDEX IF NOT EXISTS idx_task_completions_completed ON public.task_completions(student_id, completed_at) WHERE status = 'completed';
+
+-- 4.16 notices
+CREATE TABLE IF NOT EXISTS public.notices (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    author_id UUID NOT NULL REFERENCES public.users(id) ON DELETE RESTRICT,
+    title TEXT NOT NULL,
+    body TEXT NOT NULL,
+    audience notice_audience NOT NULL DEFAULT 'all',
+    course_id UUID NULL REFERENCES public.courses(id) ON DELETE CASCADE,
+    priority notice_priority NOT NULL DEFAULT 'normal',
+    is_pinned BOOLEAN NOT NULL DEFAULT FALSE,
+    status notice_status NOT NULL DEFAULT 'published',
+    published_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    expires_at TIMESTAMPTZ NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    CONSTRAINT ck_notice_course_scope CHECK (
+        (audience = 'course' AND course_id IS NOT NULL) OR
+        (audience != 'course')
+    )
+);
+
+CREATE INDEX IF NOT EXISTS idx_notices_status_pub ON public.notices(status, published_at DESC);
+CREATE INDEX IF NOT EXISTS idx_notices_course ON public.notices(course_id);
+
+DROP TRIGGER IF EXISTS set_timestamp_notices ON public.notices;
+CREATE TRIGGER set_timestamp_notices
+BEFORE UPDATE ON public.notices
+FOR EACH ROW EXECUTE FUNCTION trigger_set_timestamp();
+
+-- 4.17 chat_sessions & chat_messages (Aarsh Intelligence)
+CREATE TABLE IF NOT EXISTS public.chat_sessions (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
+    title TEXT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_chat_sessions_user ON public.chat_sessions(user_id);
+
+DROP TRIGGER IF EXISTS set_timestamp_chat_sessions ON public.chat_sessions;
+CREATE TRIGGER set_timestamp_chat_sessions
+BEFORE UPDATE ON public.chat_sessions
+FOR EACH ROW EXECUTE FUNCTION trigger_set_timestamp();
+
+CREATE TABLE IF NOT EXISTS public.chat_messages (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    session_id UUID NOT NULL REFERENCES public.chat_sessions(id) ON DELETE CASCADE,
+    role chat_role NOT NULL,
+    content TEXT NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_chat_messages_session ON public.chat_messages(session_id, created_at ASC);
+
+-- 4.18 audit_logs
+CREATE TABLE IF NOT EXISTS public.audit_logs (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    actor_id UUID NULL REFERENCES public.users(id) ON DELETE SET NULL,
+    action TEXT NOT NULL,
+    entity_type TEXT NOT NULL,
+    entity_id TEXT NULL,
+    metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
+    ip_address INET NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_audit_logs_created_at ON public.audit_logs(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_audit_logs_actor ON public.audit_logs(actor_id);
+
+-- 5. DEFENSE-IN-DEPTH ROW LEVEL SECURITY (RLS)
+-- As designed in Docs/architecture.md & Docs/database.md:
+-- The browser NEVER talks to Supabase directly. All access goes through the FastAPI backend
+-- using the service role connection. RLS is enabled on all tables with no policies for
+-- anon or authenticated client roles, preventing direct data leakage via Supabase client SDKs.
+
+ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.departments ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.student_profiles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.teacher_profiles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.courses ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.enrollments ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.exams ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.questions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.question_options ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.exam_attempts ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.attempt_answers ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.results ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.certificates ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.tasks ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.task_completions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.notices ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.chat_sessions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.chat_messages ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.audit_logs ENABLE ROW LEVEL SECURITY;
+
+-- 6. STORAGE BUCKET INITIALIZATION (Supabase Storage)
+INSERT INTO storage.buckets (id, name, public)
+VALUES ('sbu-storage', 'sbu-storage', false)
+ON CONFLICT (id) DO NOTHING;

@@ -1,0 +1,62 @@
+INFO:     Started server process [77207]
+INFO:     Waiting for application startup.
+2026-10-15 03:58:34,913 - sbuniversity - INFO - Starting SBUniversity API in development mode...
+2026-10-15 03:58:34,916 - sbuniversity - WARNING - Redis connection failed (Error 61 connecting to localhost:6379. Connection refused.); using in-memory fallback for local operation.
+2026-10-15 03:58:36,004 - sbuniversity - INFO - Rebuilt Redis leaderboard for 8 students
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+INFO:     127.0.0.1:49368 - "GET /api/v1/admin/users?page=1&page_size=2 HTTP/1.1" 200 OK
+2026-10-15 03:59:30,422 - sbuniversity - WARNING - Clerk role sync returned 404: {"errors":[{"message":"not found","long_message":"No user was found with id user_admin_01","code":"resource_not_found"}],"clerk_trace_id":"319e0e8d42b5ad2604c4c5a9c8d8e16d"}
+INFO:     127.0.0.1:49370 - "PATCH /api/v1/admin/users/bbd74dff-492f-4498-ab04-95c0ca1202bb/role HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49379 - "GET /api/v1/admin/users?page=1&page_size=2 HTTP/1.1" 200 OK
+2026-10-15 04:01:56,239 - sbuniversity - WARNING - Clerk role sync returned 404: {"errors":[{"message":"not found","long_message":"No user was found with id user_teacher_01","code":"resource_not_found"}],"clerk_trace_id":"ad2ef176ca64fa2b3d57a10062bad23e"}
+INFO:     127.0.0.1:49381 - "PATCH /api/v1/admin/users/58ac6273-da20-4c19-b0dc-6b903e662813/role HTTP/1.1" 200 OK
+2026-10-15 05:08:21,696 - sbuniversity - ERROR - Exception in periodic sweeper: (psycopg.OperationalError) failed to resolve host 'db.nxpooaasjfvkbzjinbhk.supabase.co': [Errno 8] nodename nor servname provided, or not known
+(Background on this error at: https://sqlalche.me/e/21/e3q8)
+2026-10-15 05:25:07,023 - sbuniversity - ERROR - Exception in periodic sweeper: (psycopg.OperationalError) failed to resolve host 'db.nxpooaasjfvkbzjinbhk.supabase.co': [Errno 8] nodename nor servname provided, or not known
+(Background on this error at: https://sqlalche.me/e/21/e3q8)
+2026-10-15 05:40:52,010 - sbuniversity - ERROR - Exception in periodic sweeper: (psycopg.OperationalError) failed to resolve host 'db.nxpooaasjfvkbzjinbhk.supabase.co': [Errno 8] nodename nor servname provided, or not known
+(Background on this error at: https://sqlalche.me/e/21/e3q8)
+2026-10-15 05:41:52,014 - sbuniversity - ERROR - Exception in periodic sweeper: (psycopg.OperationalError) failed to resolve host 'db.nxpooaasjfvkbzjinbhk.supabase.co': [Errno 8] nodename nor servname provided, or not known
+(Background on this error at: https://sqlalche.me/e/21/e3q8)
+2026-10-15 05:57:54,006 - sbuniversity - ERROR - Exception in periodic sweeper: (psycopg.OperationalError) failed to resolve host 'db.nxpooaasjfvkbzjinbhk.supabase.co': [Errno 8] nodename nor servname provided, or not known
+(Background on this error at: https://sqlalche.me/e/21/e3q8)
+2026-10-15 06:14:59,997 - sbuniversity - ERROR - Exception in periodic sweeper: (psycopg.OperationalError) failed to resolve host 'db.nxpooaasjfvkbzjinbhk.supabase.co': [Errno 8] nodename nor servname provided, or not known
+(Background on this error at: https://sqlalche.me/e/21/e3q8)
+2026-10-15 06:31:27,985 - sbuniversity - ERROR - Exception in periodic sweeper: (psycopg.OperationalError) failed to resolve host 'db.nxpooaasjfvkbzjinbhk.supabase.co': [Errno 8] nodename nor servname provided, or not known
+(Background on this error at: https://sqlalche.me/e/21/e3q8)
+2026-10-15 06:42:54,985 - sbuniversity - ERROR - Exception in periodic sweeper: (psycopg.OperationalError) failed to resolve host 'db.nxpooaasjfvkbzjinbhk.supabase.co': [Errno 8] nodename nor servname provided, or not known
+(Background on this error at: https://sqlalche.me/e/21/e3q8)
+2026-10-15 07:00:53,974 - sbuniversity - ERROR - Exception in periodic sweeper: (psycopg.OperationalError) failed to resolve host 'db.nxpooaasjfvkbzjinbhk.supabase.co': [Errno 8] nodename nor servname provided, or not known
+(Background on this error at: https://sqlalche.me/e/21/e3q8)
+2026-10-15 07:18:06,967 - sbuniversity - ERROR - Exception in periodic sweeper: (psycopg.OperationalError) failed to resolve host 'db.nxpooaasjfvkbzjinbhk.supabase.co': [Errno 8] nodename nor servname provided, or not known
+(Background on this error at: https://sqlalche.me/e/21/e3q8)
+2026-10-15 07:34:12,956 - sbuniversity - ERROR - Exception in periodic sweeper: (psycopg.OperationalError) failed to resolve host 'db.nxpooaasjfvkbzjinbhk.supabase.co': [Errno 8] nodename nor servname provided, or not known
+(Background on this error at: https://sqlalche.me/e/21/e3q8)
+2026-10-15 07:43:55,959 - sbuniversity - ERROR - Exception in periodic sweeper: (psycopg.OperationalError) failed to resolve host 'db.nxpooaasjfvkbzjinbhk.supabase.co': [Errno 8] nodename nor servname provided, or not known
+(Background on this error at: https://sqlalche.me/e/21/e3q8)
+2026-10-15 07:59:31,947 - sbuniversity - ERROR - Exception in periodic sweeper: (psycopg.OperationalError) failed to resolve host 'db.nxpooaasjfvkbzjinbhk.supabase.co': [Errno 8] nodename nor servname provided, or not known
+(Background on this error at: https://sqlalche.me/e/21/e3q8)
+2026-10-15 08:16:19,943 - sbuniversity - ERROR - Exception in periodic sweeper: (psycopg.OperationalError) failed to resolve host 'db.nxpooaasjfvkbzjinbhk.supabase.co': [Errno 8] nodename nor servname provided, or not known
+(Background on this error at: https://sqlalche.me/e/21/e3q8)
+2026-10-15 08:33:07,940 - sbuniversity - ERROR - Exception in periodic sweeper: (psycopg.OperationalError) failed to resolve host 'db.nxpooaasjfvkbzjinbhk.supabase.co': [Errno 8] nodename nor servname provided, or not known
+(Background on this error at: https://sqlalche.me/e/21/e3q8)
+2026-10-15 08:44:56,939 - sbuniversity - ERROR - Exception in periodic sweeper: (psycopg.OperationalError) failed to resolve host 'db.nxpooaasjfvkbzjinbhk.supabase.co': [Errno 8] nodename nor servname provided, or not known
+(Background on this error at: https://sqlalche.me/e/21/e3q8)
+2026-10-15 09:00:53,927 - sbuniversity - ERROR - Exception in periodic sweeper: (psycopg.OperationalError) failed to resolve host 'db.nxpooaasjfvkbzjinbhk.supabase.co': [Errno 8] nodename nor servname provided, or not known
+(Background on this error at: https://sqlalche.me/e/21/e3q8)
+2026-10-15 09:16:05,916 - sbuniversity - ERROR - Exception in periodic sweeper: (psycopg.OperationalError) failed to resolve host 'db.nxpooaasjfvkbzjinbhk.supabase.co': [Errno 8] nodename nor servname provided, or not known
+(Background on this error at: https://sqlalche.me/e/21/e3q8)
+2026-10-15 09:33:17,914 - sbuniversity - ERROR - Exception in periodic sweeper: (psycopg.OperationalError) failed to resolve host 'db.nxpooaasjfvkbzjinbhk.supabase.co': [Errno 8] nodename nor servname provided, or not known
+(Background on this error at: https://sqlalche.me/e/21/e3q8)
+2026-10-15 09:45:57,903 - sbuniversity - ERROR - Exception in periodic sweeper: (psycopg.OperationalError) failed to resolve host 'db.nxpooaasjfvkbzjinbhk.supabase.co': [Errno 8] nodename nor servname provided, or not known
+(Background on this error at: https://sqlalche.me/e/21/e3q8)
+2026-10-15 10:02:02,896 - sbuniversity - ERROR - Exception in periodic sweeper: (psycopg.OperationalError) failed to resolve host 'db.nxpooaasjfvkbzjinbhk.supabase.co': [Errno 8] nodename nor servname provided, or not known
+(Background on this error at: https://sqlalche.me/e/21/e3q8)
+2026-10-15 10:14:29,902 - sbuniversity - ERROR - Exception in periodic sweeper: (psycopg.OperationalError) failed to resolve host 'db.nxpooaasjfvkbzjinbhk.supabase.co': [Errno 8] nodename nor servname provided, or not known
+(Background on this error at: https://sqlalche.me/e/21/e3q8)
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+2026-10-15 10:31:07,866 - sbuniversity - INFO - Shutdown complete for SBUniversity API
+INFO:     Application shutdown complete.
+INFO:     Finished server process [77207]

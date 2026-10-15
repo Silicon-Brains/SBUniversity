@@ -1,0 +1,13 @@
+# web Folders 
+
+/web/.next
+/web/node_modules
+/web/.env.local
+/web/next-env.d.ts
+
+# server folders
+
+
+/server/.venv
+/server/.env
+/server/.pytest_cache
