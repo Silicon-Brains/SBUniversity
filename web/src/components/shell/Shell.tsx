@@ -18,6 +18,7 @@ import {
   LogOut,
   Megaphone,
   Menu,
+  MessagesSquare,
   Sparkles,
   Trophy,
   Users,
@@ -56,6 +57,7 @@ const NAV: Record<Role, NavItem[]> = {
     { href: "/student/profile", label: "Virtual ID Card", icon: IdCard },
     { href: "/ranking", label: "Live Ranking", icon: Trophy, badge: "Top 4" },
     { href: "/notices", label: "Notice Board", icon: Megaphone },
+    { href: "/community-chat", label: "Community Chat", icon: MessagesSquare },
     { href: "/assistant", label: "Aarsh AI", icon: Bot, badge: "AI" },
   ],
   teacher: [
@@ -64,6 +66,7 @@ const NAV: Record<Role, NavItem[]> = {
     { href: "/teacher/tasks", label: "Task Approvals", icon: ClipboardCheck },
     { href: "/ranking", label: "Live Ranking", icon: Trophy },
     { href: "/notices", label: "Notices", icon: Megaphone },
+    { href: "/community-chat", label: "Community Chat", icon: MessagesSquare },
     { href: "/assistant", label: "Aarsh AI", icon: Bot },
   ],
   admin: [
@@ -73,6 +76,7 @@ const NAV: Record<Role, NavItem[]> = {
     { href: "/admin/analytics", label: "Live Analytics", icon: BarChart3 },
     { href: "/admin/notices", label: "Notice Control", icon: Megaphone },
     { href: "/ranking", label: "Live Ranking", icon: Trophy },
+    { href: "/community-chat", label: "Community Chat", icon: MessagesSquare },
     { href: "/assistant", label: "Aarsh AI", icon: Bot },
   ],
 };

@@ -12,6 +12,7 @@ from app.core.logging import logger, setup_logging
 from app.core.redis import close_redis_client, get_redis_client
 from app.db.session import AsyncSessionLocal
 from app.repositories.exam_repository import ExamRepository
+from app.repositories.community_chat_repository import CommunityChatRepository
 from app.services.exam_service import ExamService
 from app.services.ranking_service import RankingService
 
@@ -39,6 +40,21 @@ async def periodic_expired_attempts_sweeper():
             logger.error("Exception in periodic sweeper: %s", e)
 
 
+async def periodic_expired_community_chats_sweeper():
+    """Delete community conversations 10 hours after their latest message."""
+    while True:
+        try:
+            await asyncio.sleep(60)
+            async with AsyncSessionLocal() as session:
+                deleted = await CommunityChatRepository(session).delete_expired()
+                if deleted:
+                    logger.info("Removed %d expired community chat conversations", deleted)
+        except asyncio.CancelledError:
+            break
+        except Exception as e:
+            logger.error("Exception in community chat sweeper: %s", e)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup
@@ -58,15 +74,18 @@ async def lifespan(app: FastAPI):
 
     # Start background sweeper
     sweeper_task = asyncio.create_task(periodic_expired_attempts_sweeper())
+    community_chat_sweeper_task = asyncio.create_task(
+        periodic_expired_community_chats_sweeper()
+    )
 
     yield
 
     # Shutdown
     sweeper_task.cancel()
-    try:
-        await sweeper_task
-    except asyncio.CancelledError:
-        pass
+    community_chat_sweeper_task.cancel()
+    await asyncio.gather(
+        sweeper_task, community_chat_sweeper_task, return_exceptions=True
+    )
     await close_redis_client()
     logger.info("Shutdown complete for %s", settings.APP_NAME)
 

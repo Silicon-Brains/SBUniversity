@@ -3,6 +3,7 @@ from app.api.v1.admin import admin_router
 from app.api.v1.assistant import router as assistant_router
 from app.api.v1.auth_webhooks import router as webhooks_router
 from app.api.v1.certificates import router as certificates_router
+from app.api.v1.community_chat import router as community_chat_router
 from app.api.v1.exams import router as exams_router
 from app.api.v1.me import router as me_router
 from app.api.v1.notices import router as notices_router
@@ -33,6 +34,7 @@ api_v1_router.include_router(certificates_router)
 api_v1_router.include_router(tasks_router)
 api_v1_router.include_router(ranking_router)
 api_v1_router.include_router(notices_router)
+api_v1_router.include_router(community_chat_router)
 api_v1_router.include_router(assistant_router)
 
 # Admin Panel
