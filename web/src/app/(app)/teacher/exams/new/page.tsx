@@ -1,11 +1,12 @@
 "use client";
-import React, { useState } from "react";
-import Link from "next/link";
+import React, { useCallback, useEffect, useState } from "react";
+import { useAuth } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Plus, Trash2, CheckCircle2, AlertCircle, Clock, Sparkles } from "lucide-react";
+import { ArrowLeft, Plus, Trash2, CheckCircle2, Loader2 } from "lucide-react";
 import { PageHeader, Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { useToast } from "@/components/ui/Toast";
+import { api, getDevAuthToken } from "@/lib/api";
 
 interface OptionDraft {
   text: string;
@@ -19,42 +20,85 @@ interface QuestionDraft {
   explanation: string;
 }
 
+interface TeacherCourse {
+  id: string;
+  title: string;
+  code: string;
+}
+
+interface TeacherDashboardResponse {
+  my_courses: TeacherCourse[];
+}
+
+function toLocalDateTimeInput(date: Date): string {
+  return new Date(date.getTime() - date.getTimezoneOffset() * 60_000)
+    .toISOString()
+    .slice(0, 16);
+}
+
 export default function NewExamPage() {
   const router = useRouter();
   const toast = useToast();
+  const { getToken } = useAuth();
 
-  const [course, setCourse] = useState("Data Structures & Algorithms");
+  const [courses, setCourses] = useState<TeacherCourse[]>([]);
+  const [courseId, setCourseId] = useState("");
+  const [loadingCourses, setLoadingCourses] = useState(true);
+  const [coursesError, setCoursesError] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [startAt, setStartAt] = useState(() =>
+    toLocalDateTimeInput(new Date(Date.now() + 60 * 60 * 1000))
+  );
+  const [endAt, setEndAt] = useState(() =>
+    toLocalDateTimeInput(new Date(Date.now() + 24 * 60 * 60 * 1000))
+  );
   const [title, setTitle] = useState("");
   const [instructions, setInstructions] = useState("Attempt all questions. Server timer runs continuously.");
   const [durationMinutes, setDurationMinutes] = useState(45);
-  const [passMarks, setPassMarks] = useState(10);
+  const [passMarks, setPassMarks] = useState(5);
   const [taskPoints, setTaskPoints] = useState(50);
   const [negativeMarking, setNegativeMarking] = useState(0);
 
   const [questions, setQuestions] = useState<QuestionDraft[]>([
     {
-      text: "What is the worst-case time complexity of QuickSort when the pivot is chosen poorly?",
+      text: "",
       marks: 5,
-      explanation: "Worst case occurs with already sorted arrays and naive pivot choice: O(n^2).",
+      explanation: "",
       options: [
-        { text: "O(n log n)", isCorrect: false },
-        { text: "O(n^2)", isCorrect: true },
-        { text: "O(log n)", isCorrect: false },
-        { text: "O(n)", isCorrect: false },
-      ],
-    },
-    {
-      text: "Which traversal of a Binary Search Tree produces values in strictly sorted order?",
-      marks: 5,
-      explanation: "In-order traversal visits Left, Root, Right, producing sorted elements.",
-      options: [
-        { text: "Pre-order Traversal", isCorrect: false },
-        { text: "Post-order Traversal", isCorrect: false },
-        { text: "In-order Traversal", isCorrect: true },
-        { text: "Level-order Traversal", isCorrect: false },
+        { text: "", isCorrect: true },
+        { text: "", isCorrect: false },
+        { text: "", isCorrect: false },
+        { text: "", isCorrect: false },
       ],
     },
   ]);
+
+  const resolveToken = useCallback(async () => {
+    let token = await getToken();
+    if (!token && (process.env.NEXT_PUBLIC_DEMO_MODE === "true" || process.env.NODE_ENV === "development")) {
+      token = getDevAuthToken("teacher");
+    }
+    return token;
+  }, [getToken]);
+
+  const loadCourses = useCallback(async () => {
+    setLoadingCourses(true);
+    setCoursesError(null);
+    try {
+      const token = await resolveToken();
+      const dashboard = await api<TeacherDashboardResponse>("/teacher/dashboard", token ?? undefined);
+      setCourses(dashboard.my_courses);
+      setCourseId((current) => current || dashboard.my_courses[0]?.id || "");
+    } catch (err) {
+      setCoursesError(err instanceof Error ? err.message : "Failed to load your courses.");
+    } finally {
+      setLoadingCourses(false);
+    }
+  }, [resolveToken]);
+
+  useEffect(() => {
+    void loadCourses();
+  }, [loadCourses]);
 
   const addQuestion = () => {
     setQuestions((prev) => [
@@ -112,19 +156,99 @@ export default function NewExamPage() {
     );
   };
 
-  const handleSubmit = (publishImmediately: boolean) => {
+  const handleSubmit = async (publishImmediately: boolean) => {
     if (!title.trim()) {
       toast("Please enter an exam title.");
       return;
     }
-    toast(
-      publishImmediately
-        ? `Exam "${title}" published with +${taskPoints} Task Points!`
-        : `Exam draft "${title}" saved successfully.`
-    );
-    setTimeout(() => {
+    if (!courseId) {
+      toast("Select one of your courses.");
+      return;
+    }
+    if (questions.some((question) =>
+      !question.text.trim() ||
+      question.marks <= 0 ||
+      question.options.filter((option) => option.isCorrect).length !== 1 ||
+      question.options.some((option) => !option.text.trim())
+    )) {
+      toast("Complete each question and its options, and select exactly one correct answer.");
+      return;
+    }
+    if (passMarks > totalCalculatedMarks) {
+      toast("Pass marks cannot be greater than the total marks.");
+      return;
+    }
+
+    const start = new Date(startAt);
+    const end = new Date(endAt);
+    if (!Number.isFinite(start.getTime()) || !Number.isFinite(end.getTime()) || end <= start) {
+      toast("Choose a valid exam window. The end must be after the start.");
+      return;
+    }
+
+    setIsSaving(true);
+    let createdExamId: string | null = null;
+    try {
+      const token = await resolveToken();
+      const createdExam = await api<{ id: string }>(
+        "/exams",
+        token ?? undefined,
+        {
+          method: "POST",
+          body: JSON.stringify({
+            course_id: courseId,
+            title: title.trim(),
+            instructions: instructions.trim() || null,
+            duration_minutes: durationMinutes,
+            pass_marks: passMarks,
+            negative_marking: negativeMarking,
+            start_at: start.toISOString(),
+            end_at: end.toISOString(),
+          }),
+        }
+      );
+      createdExamId = createdExam.id;
+
+      for (const [index, question] of questions.entries()) {
+        await api(
+          `/exams/${createdExam.id}/questions`,
+          token ?? undefined,
+          {
+            method: "POST",
+            body: JSON.stringify({
+              text: question.text.trim(),
+              marks: question.marks,
+              position: index + 1,
+              explanation: question.explanation.trim() || null,
+              options: question.options.map((option, optionIndex) => ({
+                text: option.text.trim(),
+                is_correct: option.isCorrect,
+                position: optionIndex + 1,
+              })),
+            }),
+          }
+        );
+      }
+
+      if (publishImmediately) {
+        await api(
+          `/exams/${createdExam.id}/publish`,
+          token ?? undefined,
+          {
+            method: "POST",
+            body: JSON.stringify({ task_points: taskPoints }),
+          }
+        );
+      }
+
+      toast(publishImmediately ? `Published "${title}".` : `Saved "${title}" as a draft.`);
       router.push("/teacher/exams");
-    }, 600);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to save the exam.";
+      toast(createdExamId ? `Exam draft ${createdExamId} was created, but setup failed: ${message}` : message);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const totalCalculatedMarks = questions.reduce((sum, q) => sum + (Number(q.marks) || 0), 0);
@@ -141,6 +265,19 @@ export default function NewExamPage() {
         title="Create New Examination"
         subtitle="Configure exam details, duration, question bank, and linked Task Points."
       />
+
+      {coursesError ? (
+        <Card className="p-5 text-sm text-danger">
+          <p>{coursesError}</p>
+          <Button variant="secondary" size="sm" className="mt-3" onClick={() => void loadCourses()}>
+            Retry Loading Courses
+          </Button>
+        </Card>
+      ) : !loadingCourses && courses.length === 0 ? (
+        <Card className="p-5 text-sm text-ink-muted">
+          No courses are assigned to your account yet. You need an assigned course before creating an exam.
+        </Card>
+      ) : null}
 
       <div className="grid gap-8 lg:grid-cols-12 lg:items-start">
         {/* Left Form: Exam Configuration */}
@@ -170,13 +307,18 @@ export default function NewExamPage() {
                   Select Course
                 </label>
                 <select
-                  value={course}
-                  onChange={(e) => setCourse(e.target.value)}
+                  value={courseId}
+                  onChange={(e) => setCourseId(e.target.value)}
+                  disabled={loadingCourses || courses.length === 0}
                   className="h-11 w-full rounded-lg border border-cream-300 bg-white px-3 text-sm text-ink focus:border-green-700 focus:outline-none"
                 >
-                  <option>Data Structures & Algorithms</option>
-                  <option>Design & Analysis of Algorithms</option>
-                  <option>Python Programming Fundamentals</option>
+                  {loadingCourses ? (
+                    <option value="">Loading courses...</option>
+                  ) : courses.length === 0 ? (
+                    <option value="">No courses assigned</option>
+                  ) : courses.map((item) => (
+                    <option key={item.id} value={item.id}>{item.code} – {item.title}</option>
+                  ))}
                 </select>
               </div>
 
@@ -220,6 +362,32 @@ export default function NewExamPage() {
                 />
                 <span className="text-[11px] text-ink-muted">Earned automatically when student passes</span>
               </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-green-900 mb-1">
+                  Opens At
+                </label>
+                <input
+                  type="datetime-local"
+                  required
+                  value={startAt}
+                  onChange={(e) => setStartAt(e.target.value)}
+                  className="h-11 w-full rounded-lg border border-cream-300 bg-white px-3 text-sm text-ink focus:border-green-700 focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-green-900 mb-1">
+                  Closes At
+                </label>
+                <input
+                  type="datetime-local"
+                  required
+                  value={endAt}
+                  onChange={(e) => setEndAt(e.target.value)}
+                  className="h-11 w-full rounded-lg border border-cream-300 bg-white px-3 text-sm text-ink focus:border-green-700 focus:outline-none"
+                />
+              </div>
             </div>
 
             <div>
@@ -256,7 +424,19 @@ export default function NewExamPage() {
                     Question #{qIndex + 1}
                   </span>
                   <div className="flex items-center gap-3">
-                    <span className="text-xs text-ink-muted">Marks: 5.0</span>
+                    <label className="flex items-center gap-1.5 text-xs text-ink-muted">
+                      Marks
+                      <input
+                        type="number"
+                        min="0.1"
+                        step="0.1"
+                        value={q.marks}
+                        onChange={(e) => setQuestions((prev) =>
+                          prev.map((item, i) => i === qIndex ? { ...item, marks: Number(e.target.value) } : item)
+                        )}
+                        className="h-8 w-16 rounded border border-cream-300 px-2 text-ink"
+                      />
+                    </label>
                     {questions.length > 1 && (
                       <button
                         type="button"
@@ -317,6 +497,20 @@ export default function NewExamPage() {
                     </div>
                   ))}
                 </div>
+
+                <div>
+                  <label className="block text-xs font-medium text-ink-muted mb-1">
+                    Explanation (optional)
+                  </label>
+                  <textarea
+                    rows={2}
+                    value={q.explanation}
+                    onChange={(e) => setQuestions((prev) =>
+                      prev.map((item, i) => i === qIndex ? { ...item, explanation: e.target.value } : item)
+                    )}
+                    className="w-full rounded-lg border border-cream-300 bg-white p-2.5 text-sm text-ink focus:border-green-700 focus:outline-none"
+                  />
+                </div>
               </Card>
             ))}
           </div>
@@ -358,18 +552,20 @@ export default function NewExamPage() {
                 variant="primary"
                 size="md"
                 className="w-full"
-                onClick={() => handleSubmit(true)}
+                disabled={isSaving || loadingCourses || courses.length === 0}
+                onClick={() => void handleSubmit(true)}
               >
-                Publish Exam Now
+                {isSaving ? <Loader2 size={16} className="animate-spin" /> : "Publish Exam Now"}
               </Button>
               <Button
                 type="button"
                 variant="secondary"
                 size="md"
                 className="w-full"
-                onClick={() => handleSubmit(false)}
+                disabled={isSaving || loadingCourses || courses.length === 0}
+                onClick={() => void handleSubmit(false)}
               >
-                Save as Draft
+                {isSaving ? <Loader2 size={16} className="animate-spin" /> : "Save as Draft"}
               </Button>
             </div>
           </Card>

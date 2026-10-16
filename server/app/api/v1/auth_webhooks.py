@@ -72,8 +72,7 @@ async def clerk_webhook(
             )
             # Create default student profile if student
             if role == UserRole.STUDENT:
-                count_res = await user_repo.list_users(role=UserRole.STUDENT)
-                student_code = f"SBU-2026-{(count_res[1] + 1):04d}"
+                student_code = await user_repo.next_student_code(2026)
                 user.student_profile = StudentProfile(student_code=student_code, qr_token=str(clerk_id))
 
             await user_repo.create(user)

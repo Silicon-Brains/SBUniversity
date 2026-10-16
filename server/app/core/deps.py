@@ -1,7 +1,8 @@
+import uuid
 from typing import AsyncGenerator, List, Optional, Union
 from fastapi import Depends, HTTPException, Query, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 from app.core.config import settings
@@ -10,6 +11,7 @@ from app.core.security import SecurityError, verify_clerk_token
 from app.db.models.course import Course, Enrollment, EnrollmentStatus
 from app.db.models.user import Department, StudentProfile, TeacherProfile, User, UserRole, UserStatus
 from app.db.session import get_db
+from app.repositories.user_repository import UserRepository
 
 security = HTTPBearer(auto_error=False)
 
@@ -39,6 +41,8 @@ async def get_current_user(
                 }
             },
         )
+
+    user_repo = UserRepository(db)
 
     try:
         payload = await verify_clerk_token(token)
@@ -93,6 +97,10 @@ async def get_current_user(
         )
         res = await db.execute(reload_stmt)
         return res.scalar_one()
+
+    async def student_profile_exists(user_id: uuid.UUID) -> bool:
+        profile_stmt = select(StudentProfile.user_id).where(StudentProfile.user_id == user_id)
+        return (await db.execute(profile_stmt)).scalar_one_or_none() is not None
 
     if not user:
         # Check if we should auto-provision a basic student record or if in dev mode
@@ -160,10 +168,8 @@ async def get_current_user(
             await db.flush()
 
         # If user is student and has no student_profile, create it
-        if user.role == UserRole.STUDENT and not user.student_profile:
-            count_stmt = select(func.count(StudentProfile.user_id))
-            cnt = (await db.execute(count_stmt)).scalar() or 0
-            student_code = f"SBU-2026-{(cnt + 1):04d}"
+        if user.role == UserRole.STUDENT and not await student_profile_exists(user.id):
+            student_code = await user_repo.next_student_code(2026)
 
             dept_stmt = select(Department).limit(1)
             dept = (await db.execute(dept_stmt)).scalar_one_or_none()
@@ -220,10 +226,8 @@ async def get_current_user(
                 pass
 
         # If existing student lacks a profile, auto-create it now
-        if user.role == UserRole.STUDENT and not user.student_profile:
-            count_stmt = select(func.count(StudentProfile.user_id))
-            cnt = (await db.execute(count_stmt)).scalar() or 0
-            student_code = f"SBU-2026-{(cnt + 1):04d}"
+        if user.role == UserRole.STUDENT and not await student_profile_exists(user.id):
+            student_code = await user_repo.next_student_code(2026)
 
             dept_stmt = select(Department).limit(1)
             dept = (await db.execute(dept_stmt)).scalar_one_or_none()

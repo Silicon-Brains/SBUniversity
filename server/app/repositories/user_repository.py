@@ -100,6 +100,16 @@ class UserRepository:
         result = await self.db.execute(stmt)
         return result.scalar_one_or_none()
 
+    async def next_student_code(self, year: int) -> str:
+        prefix = f"SBU-{year}-"
+        result = await self.db.execute(select(StudentProfile.student_code))
+        numbers = [
+            int(code[len(prefix):])
+            for code in result.scalars()
+            if code.startswith(prefix) and code[len(prefix):].isdigit()
+        ]
+        return f"{prefix}{max(numbers, default=0) + 1:04d}"
+
     async def get_user_stats(self) -> dict:
         stmt = select(User.role, func.count(User.id)).group_by(User.role)
         res = await self.db.execute(stmt)

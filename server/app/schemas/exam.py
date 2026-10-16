@@ -86,6 +86,8 @@ class ExamResponse(BaseModel):
     end_at: datetime
     status: ExamStatus
     task_points: Optional[int] = None
+    course_title: Optional[str] = None
+    questions_count: int = 0
     created_at: datetime
     updated_at: datetime
 

@@ -21,6 +21,35 @@ async def test_get_me_student(client: AsyncClient):
 
 
 @pytest.mark.asyncio
+async def test_first_login_provisions_student_profile_without_lazy_load(client: AsyncClient):
+    resp = await client.get(
+        "/me",
+        headers={"Authorization": "Bearer dev-token-student-first_login_regression"},
+    )
+
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["clerk_user_id"] == "first_login_regression"
+    assert data["role"] == "student"
+    assert data["student_profile"] is not None
+    assert data["student_profile"]["student_code"]
+
+
+@pytest.mark.asyncio
+async def test_first_login_student_code_uses_highest_existing_code(client: AsyncClient, db_session):
+    db_session.test_student2.student_profile.student_code = "SBU-2026-0012"
+    await db_session.commit()
+
+    resp = await client.get(
+        "/me",
+        headers={"Authorization": "Bearer dev-token-student-student_code_gap"},
+    )
+
+    assert resp.status_code == 200
+    assert resp.json()["student_profile"]["student_code"] == "SBU-2026-0013"
+
+
+@pytest.mark.asyncio
 async def test_student_cannot_access_admin_routes(client: AsyncClient):
     resp = await client.get("/admin/users", headers={"Authorization": "Bearer dev-token-student-u_student1"})
     assert resp.status_code == 403

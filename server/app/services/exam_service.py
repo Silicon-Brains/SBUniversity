@@ -207,6 +207,20 @@ class ExamService:
         await self.db.refresh(exam)
         return exam
 
+    async def close_exam(self, exam_id: uuid.UUID, user: User) -> Exam:
+        exam = await self.exam_repo.get_by_id(exam_id)
+        if not exam:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Exam not found")
+        if exam.status != ExamStatus.PUBLISHED:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Only published exams can be closed")
+
+        course = await self.course_repo.get_by_id(exam.course_id)
+        if user.role == UserRole.TEACHER and course and course.teacher_id != user.id:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
+
+        exam.status = ExamStatus.CLOSED
+        return await self.exam_repo.update(exam)
+
     async def start_attempt(self, exam_id: uuid.UUID, student: User) -> StartAttemptResponse:
         exam = await self.exam_repo.get_by_id(exam_id)
         if not exam:
