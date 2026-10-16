@@ -45,6 +45,12 @@ DO $$ BEGIN
 EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
 DO $$ BEGIN
+    CREATE TYPE community_conversation_kind AS ENUM (
+        'student_room', 'peer_direct', 'admin_support', 'teacher_support'
+    );
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+DO $$ BEGIN
     CREATE TYPE task_type AS ENUM ('exam', 'assignment');
 EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
@@ -471,6 +477,68 @@ CREATE TABLE IF NOT EXISTS public.chat_messages (
 
 CREATE INDEX IF NOT EXISTS idx_chat_messages_session ON public.chat_messages(session_id, created_at ASC);
 
+-- 4.18 community conversations and messages
+CREATE TABLE IF NOT EXISTS public.community_conversations (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    kind community_conversation_kind NOT NULL,
+    created_by UUID NULL REFERENCES public.users(id) ON DELETE SET NULL,
+    room_key VARCHAR(64) NULL,
+    peer_one_id UUID NULL REFERENCES public.users(id) ON DELETE CASCADE,
+    peer_two_id UUID NULL REFERENCES public.users(id) ON DELETE CASCADE,
+    requester_student_id UUID NULL REFERENCES public.users(id) ON DELETE CASCADE,
+    expires_at TIMESTAMPTZ NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    CONSTRAINT uq_community_conversation_room_key UNIQUE (room_key),
+    CONSTRAINT uq_community_conversation_peer_pair UNIQUE (peer_one_id, peer_two_id),
+    CONSTRAINT uq_community_conversation_student_support_kind
+        UNIQUE (requester_student_id, kind),
+    CONSTRAINT ck_community_conversation_target CHECK (
+        (kind = 'student_room' AND room_key IS NOT NULL
+            AND peer_one_id IS NULL AND peer_two_id IS NULL
+            AND requester_student_id IS NULL) OR
+        (kind = 'peer_direct' AND room_key IS NULL
+            AND peer_one_id IS NOT NULL AND peer_two_id IS NOT NULL
+            AND peer_one_id < peer_two_id AND requester_student_id IS NULL) OR
+        (kind IN ('admin_support', 'teacher_support') AND room_key IS NULL
+            AND peer_one_id IS NULL AND peer_two_id IS NULL
+            AND requester_student_id IS NOT NULL)
+    )
+);
+
+CREATE INDEX IF NOT EXISTS idx_community_conversations_kind
+    ON public.community_conversations(kind);
+CREATE INDEX IF NOT EXISTS idx_community_conversations_expires
+    ON public.community_conversations(expires_at);
+CREATE INDEX IF NOT EXISTS idx_community_conversations_requester
+    ON public.community_conversations(requester_student_id);
+
+DROP TRIGGER IF EXISTS set_timestamp_community_conversations
+    ON public.community_conversations;
+CREATE TRIGGER set_timestamp_community_conversations
+BEFORE UPDATE ON public.community_conversations
+FOR EACH ROW EXECUTE FUNCTION trigger_set_timestamp();
+
+CREATE TABLE IF NOT EXISTS public.community_messages (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    conversation_id UUID NOT NULL
+        REFERENCES public.community_conversations(id) ON DELETE CASCADE,
+    sender_id UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
+    content TEXT NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    CONSTRAINT ck_community_message_content_length
+        CHECK (length(content) > 0 AND length(content) <= 4000)
+);
+
+CREATE INDEX IF NOT EXISTS idx_community_messages_conversation
+    ON public.community_messages(conversation_id);
+CREATE INDEX IF NOT EXISTS idx_community_messages_sender
+    ON public.community_messages(sender_id);
+CREATE INDEX IF NOT EXISTS idx_community_messages_created
+    ON public.community_messages(created_at);
+CREATE INDEX IF NOT EXISTS idx_community_messages_conversation_created
+    ON public.community_messages(conversation_id, created_at);
+
 -- 4.18 audit_logs
 CREATE TABLE IF NOT EXISTS public.audit_logs (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -512,6 +580,8 @@ ALTER TABLE public.task_video_progress ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.notices ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.chat_sessions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.chat_messages ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.community_conversations ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.community_messages ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.audit_logs ENABLE ROW LEVEL SECURITY;
 
 -- 6. STORAGE BUCKET INITIALIZATION (Supabase Storage)

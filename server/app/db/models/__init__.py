@@ -17,7 +17,14 @@ from app.db.models.task import (
     CompletionStatus,
 )
 from app.db.models.notice import Notice, NoticeAudience, NoticePriority, NoticeStatus
-from app.db.models.chat import ChatSession, ChatMessage, ChatRole
+from app.db.models.chat import (
+    ChatSession,
+    ChatMessage,
+    ChatRole,
+    CommunityConversation,
+    CommunityConversationKind,
+    CommunityMessage,
+)
 from app.db.models.audit import AuditLog
 
 __all__ = [
@@ -57,5 +64,8 @@ __all__ = [
     "ChatSession",
     "ChatMessage",
     "ChatRole",
+    "CommunityConversation",
+    "CommunityConversationKind",
+    "CommunityMessage",
     "AuditLog",
 ]

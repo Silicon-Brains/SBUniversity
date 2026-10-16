@@ -44,6 +44,8 @@ tasks 1──* task_recipients *──1 users(student)   (selected-student assig
 tasks 1──* task_video_progress *──1 users(student)
 users 1──* notices (author)
 users 1──* chat_sessions 1──* chat_messages
+users 1──* community_messages
+community_conversations 1──* community_messages
 users 1──* audit_logs (actor)
 ```
 
@@ -337,6 +339,29 @@ chat_messages
  ├── created_at  timestamptz default now()
 ```
 Index: `(session_id, created_at)`.
+
+### community_conversations / community_messages
+```
+community_conversations
+ ├── id                  uuid PK
+ ├── kind                student_room | peer_direct | admin_support | teacher_support
+ ├── created_by          uuid NULL → users.id ON DELETE SET NULL
+ ├── room_key            varchar(64) NULL UNIQUE       -- singleton student room
+ ├── peer_one_id         uuid NULL → users.id          -- ordered direct-chat pair
+ ├── peer_two_id         uuid NULL → users.id
+ ├── requester_student_id uuid NULL → users.id         -- private support inbox thread
+ ├── expires_at          timestamptz NOT NULL
+ ├── created_at / updated_at
+
+community_messages
+ ├── id              uuid PK
+ ├── conversation_id uuid NOT NULL → community_conversations.id ON DELETE CASCADE
+ ├── sender_id       uuid NOT NULL → users.id ON DELETE CASCADE
+ ├── content         text NOT NULL CHECK (1..4000 characters)
+ └── created_at      timestamptz NOT NULL default now()
+```
+`student_room` is shared by active students; `peer_direct` is private to its ordered student pair; `admin_support` is visible only to its student and active admins; `teacher_support` is visible only to its student and active teachers. Admin and teacher buttons open role-specific inbox threads, not conversations with arbitrary students or the other staff role. `expires_at` is reset to ten hours after every new message. A backend sweeper deletes expired conversations (and cascaded messages) once a minute; chat API calls also remove expired rows, so cleanup resumes on the next request after service downtime. Existing `chat_sessions` and `chat_messages` remain reserved for Aarsh AI and are not affected.
+Indexes: `(kind)`, `(expires_at)`, `(requester_student_id)`, `(conversation_id)`, `(sender_id)`, `(created_at)`, `(conversation_id, created_at)`. Database RLS is enabled; application access is additionally checked per conversation.
 
 ### audit_logs
 ```
