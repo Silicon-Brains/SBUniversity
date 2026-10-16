@@ -5,6 +5,7 @@ import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from app.core.config import settings
+from app.core.redis import InMemoryRedisFallback
 from app.db.base import Base
 from app.db.models import Department, StudentProfile, TeacherProfile, User, UserRole, UserStatus
 from app.db.session import get_db
@@ -25,6 +26,11 @@ TestingSessionLocal = async_sessionmaker(
 # Enable auth bypass for test dev tokens
 settings.ALLOW_DEV_AUTH_BYPASS = True
 settings.RATE_LIMIT_ENABLED = False
+
+
+@pytest.fixture(autouse=True)
+def isolate_redis(monkeypatch):
+    monkeypatch.setattr("app.core.redis.redis_client", InMemoryRedisFallback())
 
 
 @pytest_asyncio.fixture(scope="session", autouse=True)

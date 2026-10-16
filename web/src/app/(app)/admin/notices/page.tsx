@@ -1,108 +1,135 @@
 "use client";
-import React, { useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
+import { useAuth } from "@clerk/nextjs";
 import {
   Megaphone,
   Plus,
   Pin,
   Trash2,
-  AlertTriangle,
-  Clock,
-  CheckCircle2,
-  Users,
+  Loader2,
+  RefreshCw,
 } from "lucide-react";
 import { PageHeader, Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { useToast } from "@/components/ui/Toast";
+import { api, getDevAuthToken } from "@/lib/api";
 
 interface NoticeItem {
   id: string;
   title: string;
   body: string;
-  author: string;
+  author_name?: string | null;
   priority: "normal" | "important" | "urgent";
-  targetRole: "all" | "student" | "teacher";
-  pinned: boolean;
-  date: string;
+  audience: "all" | "students" | "teachers" | "course";
+  is_pinned: boolean;
+  created_at: string;
 }
 
-const MOCK_ADMIN_NOTICES: NoticeItem[] = [
-  {
-    id: "n-1",
-    title: "Midterm Examination Schedule Published",
-    body: "The Data Structures midterm examination opens on Oct 18 and closes Oct 20 at 6 PM. All students have 1 attempt of 45 minutes duration.",
-    author: "Dr. Meera Iyer (Faculty)",
-    priority: "important",
-    targetRole: "all",
-    pinned: true,
-    date: "Oct 12, 2026",
-  },
-  {
-    id: "n-2",
-    title: "Scheduled Portal Maintenance & Upgrades",
-    body: "Academic result generation and certificate verification will undergo scheduled maintenance tonight between 1:00 AM and 2:00 AM IST.",
-    author: "Rohan Desai (Admin)",
-    priority: "urgent",
-    targetRole: "all",
-    pinned: true,
-    date: "Oct 14, 2026",
-  },
-  {
-    id: "n-3",
-    title: "Central Library Operating Hours Adjusted",
-    body: "The central library and digital study labs will close at 4:00 PM this Friday for infrastructure upgrades.",
-    author: "Rohan Desai (Admin)",
-    priority: "normal",
-    targetRole: "all",
-    pinned: false,
-    date: "Oct 10, 2026",
-  },
-];
-
 export default function AdminNoticesPage() {
-  const [notices, setNotices] = useState(MOCK_ADMIN_NOTICES);
+  const { getToken } = useAuth();
+  const [notices, setNotices] = useState<NoticeItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [newTitle, setNewTitle] = useState("");
   const [newBody, setNewBody] = useState("");
   const [newPriority, setNewPriority] = useState<"normal" | "important" | "urgent">("normal");
-  const [newTarget, setNewTarget] = useState<"all" | "student" | "teacher">("all");
+  const [newTarget, setNewTarget] = useState<"all" | "students" | "teachers">("all");
   const [isPinned, setIsPinned] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [processingId, setProcessingId] = useState<string | null>(null);
 
   const toast = useToast();
 
-  const handleCreate = (e: React.FormEvent) => {
+  const resolveToken = useCallback(async () => {
+    let token = await getToken();
+    if (!token && (process.env.NEXT_PUBLIC_DEMO_MODE === "true" || process.env.NODE_ENV === "development")) {
+      token = getDevAuthToken("admin");
+    }
+    return token;
+  }, [getToken]);
+
+  const loadNotices = useCallback(async () => {
+    setLoading(true);
+    setLoadError(null);
+    try {
+      const token = await resolveToken();
+      const data = await api<NoticeItem[]>("/admin/notices", token ?? undefined);
+      setNotices(data);
+    } catch (err) {
+      setLoadError(err instanceof Error ? err.message : "Failed to load notices.");
+    } finally {
+      setLoading(false);
+    }
+  }, [resolveToken]);
+
+  useEffect(() => {
+    void loadNotices();
+  }, [loadNotices]);
+
+  const resetForm = () => {
+    setNewTitle("");
+    setNewBody("");
+    setNewPriority("normal");
+    setNewTarget("all");
+    setIsPinned(false);
+  };
+
+  const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newTitle.trim() || !newBody.trim()) return;
 
-    const newNotice: NoticeItem = {
-      id: `n-${Date.now()}`,
-      title: newTitle.trim(),
-      body: newBody.trim(),
-      author: "Admin Registry",
-      priority: newPriority,
-      targetRole: newTarget,
-      pinned: isPinned,
-      date: "Just now",
-    };
-
-    setNotices([newNotice, ...notices]);
-    setIsModalOpen(false);
-    setNewTitle("");
-    setNewBody("");
-    setIsPinned(false);
-    toast("New university notice published.");
+    setIsSaving(true);
+    try {
+      const token = await resolveToken();
+      await api<NoticeItem>("/notices", token ?? undefined, {
+        method: "POST",
+        body: JSON.stringify({
+          title: newTitle.trim(),
+          body: newBody.trim(),
+          audience: newTarget,
+          priority: newPriority,
+          is_pinned: isPinned,
+        }),
+      });
+      await loadNotices();
+      setIsModalOpen(false);
+      resetForm();
+      toast("New university notice published.");
+    } catch (err) {
+      toast(err instanceof Error ? err.message : "Failed to publish notice.");
+    } finally {
+      setIsSaving(false);
+    }
   };
 
-  const togglePin = (id: string) => {
-    setNotices((prev) =>
-      prev.map((n) => (n.id === id ? { ...n, pinned: !n.pinned } : n))
-    );
-    toast("Notice pin status updated.");
+  const togglePin = async (id: string) => {
+    setProcessingId(id);
+    try {
+      const token = await resolveToken();
+      await api(`/admin/notices/${id}/pin`, token ?? undefined, { method: "POST" });
+      await loadNotices();
+      toast("Notice pin status updated.");
+    } catch (err) {
+      toast(err instanceof Error ? err.message : "Failed to update notice pin.");
+    } finally {
+      setProcessingId(null);
+    }
   };
 
-  const deleteNotice = (id: string) => {
-    setNotices((prev) => prev.filter((n) => n.id !== id));
-    toast("Notice removed.");
+  const deleteNotice = async (id: string) => {
+    setProcessingId(id);
+    try {
+      const token = await resolveToken();
+      await api(`/notices/${id}`, token ?? undefined, { method: "DELETE" });
+      setNotices((prev) => prev.filter((notice) => notice.id !== id));
+      toast("Notice removed.");
+    } catch (err) {
+      toast(err instanceof Error ? err.message : "Failed to delete notice.");
+    } finally {
+      setProcessingId(null);
+    }
   };
 
   return (
@@ -117,13 +144,30 @@ export default function AdminNoticesPage() {
         }
       />
 
+      {loading ? (
+        <div className="flex h-56 items-center justify-center rounded-2xl border border-cream-300 bg-white">
+          <Loader2 className="h-8 w-8 animate-spin text-green-700" />
+        </div>
+      ) : loadError ? (
+        <Card className="p-8 text-center">
+          <p className="text-sm text-danger">{loadError}</p>
+          <Button variant="secondary" size="sm" className="mt-4" onClick={() => void loadNotices()}>
+            <RefreshCw size={14} /> Try Again
+          </Button>
+        </Card>
+      ) : notices.length === 0 ? (
+        <Card className="p-10 text-center">
+          <Megaphone className="mx-auto h-10 w-10 text-cream-400" />
+          <p className="mt-3 text-sm text-ink-muted">No notices have been published.</p>
+        </Card>
+      ) : (
       <div className="space-y-4">
         {notices.map((n) => (
           <Card key={n.id} className="p-5 sm:p-6 space-y-3 transition-all hover:shadow-md">
             <div className="flex flex-wrap items-center justify-between gap-2 border-b border-cream-200 pb-3">
               <div className="flex flex-wrap items-center gap-2">
                 <h3 className="font-heading text-base font-bold text-green-900">{n.title}</h3>
-                {n.pinned && (
+                {n.is_pinned && (
                   <Badge tone="info">
                     <Pin size={11} className="mr-0.5" /> Pinned
                   </Badge>
@@ -132,24 +176,26 @@ export default function AdminNoticesPage() {
                 {n.priority === "important" && <Badge tone="info">Important</Badge>}
                 {n.priority === "normal" && <Badge tone="neutral">General</Badge>}
                 <span className="rounded bg-cream-100 px-2 py-0.5 text-[11px] font-medium text-green-900 capitalize">
-                  Target: {n.targetRole}
+                  Target: {n.audience}
                 </span>
               </div>
 
               <div className="flex items-center gap-1.5">
                 <button
                   onClick={() => togglePin(n.id)}
+                  disabled={processingId === n.id}
                   className={`rounded-lg p-1.5 transition-colors ${
-                    n.pinned
+                    n.is_pinned
                       ? "bg-cream-200 text-green-900"
                       : "text-ink-muted hover:bg-cream-100"
                   }`}
-                  title={n.pinned ? "Unpin notice" : "Pin notice to top"}
+                  title={n.is_pinned ? "Unpin notice" : "Pin notice to top"}
                 >
                   <Pin size={16} />
                 </button>
                 <button
                   onClick={() => deleteNotice(n.id)}
+                  disabled={processingId === n.id}
                   className="rounded-lg p-1.5 text-danger hover:bg-danger-bg"
                   title="Delete notice"
                 >
@@ -161,12 +207,13 @@ export default function AdminNoticesPage() {
             <p className="text-sm text-ink leading-relaxed">{n.body}</p>
 
             <div className="flex items-center justify-between pt-2 text-xs text-ink-muted">
-              <span>Author: <b className="text-ink">{n.author}</b></span>
-              <span>{n.date}</span>
+              <span>Author: <b className="text-ink">{n.author_name || "Administration"}</b></span>
+              <span>{new Date(n.created_at).toLocaleDateString()}</span>
             </div>
           </Card>
         ))}
       </div>
+      )}
 
       {/* Broadcast Notice Modal */}
       {isModalOpen && (
@@ -198,7 +245,7 @@ export default function AdminNoticesPage() {
                   </label>
                   <select
                     value={newPriority}
-                    onChange={(e) => setNewPriority(e.target.value as any)}
+                    onChange={(e) => setNewPriority(e.target.value as NoticeItem["priority"])}
                     className="h-10 w-full rounded-lg border border-cream-300 bg-white px-2 text-xs text-ink focus:border-green-700 focus:outline-none"
                   >
                     <option value="normal">Normal / General</option>
@@ -213,12 +260,12 @@ export default function AdminNoticesPage() {
                   </label>
                   <select
                     value={newTarget}
-                    onChange={(e) => setNewTarget(e.target.value as any)}
+                    onChange={(e) => setNewTarget(e.target.value as "all" | "students" | "teachers")}
                     className="h-10 w-full rounded-lg border border-cream-300 bg-white px-2 text-xs text-ink focus:border-green-700 focus:outline-none"
                   >
                     <option value="all">All University Members</option>
-                    <option value="student">Students Only</option>
-                    <option value="teacher">Teachers & Faculty Only</option>
+                    <option value="students">Students Only</option>
+                    <option value="teachers">Teachers & Faculty Only</option>
                   </select>
                 </div>
               </div>
@@ -252,12 +299,16 @@ export default function AdminNoticesPage() {
                   type="button"
                   variant="secondary"
                   size="sm"
-                  onClick={() => setIsModalOpen(false)}
+                  onClick={() => {
+                    setIsModalOpen(false);
+                    resetForm();
+                  }}
+                  disabled={isSaving}
                 >
                   Cancel
                 </Button>
-                <Button type="submit" variant="primary" size="sm">
-                  Publish Notice
+                <Button type="submit" variant="primary" size="sm" disabled={isSaving}>
+                  {isSaving ? <Loader2 size={14} className="animate-spin" /> : "Publish Notice"}
                 </Button>
               </div>
             </form>

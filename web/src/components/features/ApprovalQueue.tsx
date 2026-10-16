@@ -36,6 +36,7 @@ export function ApprovalQueue({ initial }: { initial?: PendingTaskReview[] }) {
 
   const [rows, setRows] = useState<PendingTaskReview[]>(initial ?? []);
   const [loading, setLoading] = useState(!initial || initial.length === 0);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [processingId, setProcessingId] = useState<string | null>(null);
 
   const resolveToken = useCallback(async () => {
@@ -48,12 +49,14 @@ export function ApprovalQueue({ initial }: { initial?: PendingTaskReview[] }) {
 
   const loadPending = useCallback(async () => {
     setLoading(true);
+    setLoadError(null);
     try {
       const token = await resolveToken();
-      const data = await api<PendingTaskReview[]>("/tasks/reviews", token ?? undefined).catch(() => []);
-      setRows(data || []);
+      const data = await api<PendingTaskReview[]>("/tasks/reviews", token ?? undefined);
+      setRows(data);
     } catch (err) {
       console.error("Failed to load review queue:", err);
+      setLoadError(err instanceof Error ? err.message : "Failed to load task reviews.");
     } finally {
       setLoading(false);
     }
@@ -68,13 +71,12 @@ export function ApprovalQueue({ initial }: { initial?: PendingTaskReview[] }) {
     try {
       const token = await resolveToken();
       await api(
-        `/tasks/completions/${item.id}/review`,
+        `/tasks/completions/${item.id}/${approve ? "approve" : "reject"}`,
         token ?? undefined,
         {
           method: "POST",
           body: JSON.stringify({
-            action: approve ? "approve" : "reject",
-            feedback: approve ? "Approved by faculty." : "Needs revision.",
+            review_note: approve ? "Approved by faculty." : "Needs revision.",
           }),
         }
       );
@@ -97,6 +99,17 @@ export function ApprovalQueue({ initial }: { initial?: PendingTaskReview[] }) {
       <div className="flex h-56 items-center justify-center rounded-2xl border border-cream-300 bg-white">
         <Loader2 className="h-8 w-8 animate-spin text-green-700" />
       </div>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <Card className="p-8 text-center">
+        <p className="text-sm text-danger">{loadError}</p>
+        <Button variant="secondary" size="sm" className="mt-4" onClick={() => void loadPending()}>
+          Try Again
+        </Button>
+      </Card>
     );
   }
 

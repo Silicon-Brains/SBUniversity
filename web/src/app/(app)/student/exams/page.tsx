@@ -37,6 +37,7 @@ export default function ExamsPage() {
   const { getToken } = useAuth();
   const [exams, setExams] = useState<ApiExam[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const resolveToken = useCallback(async () => {
     let token = await getToken();
@@ -48,12 +49,14 @@ export default function ExamsPage() {
 
   const loadExams = useCallback(async () => {
     setLoading(true);
+    setLoadError(null);
     try {
       const token = await resolveToken();
-      const data = await api<ApiExam[]>("/exams", token ?? undefined).catch(() => []);
-      setExams(data || []);
+      const data = await api<ApiExam[]>("/exams", token ?? undefined);
+      setExams(data);
     } catch (err) {
       console.error("Failed to load exams:", err);
+      setLoadError(err instanceof Error ? err.message : "Failed to load exams.");
     } finally {
       setLoading(false);
     }
@@ -80,6 +83,13 @@ export default function ExamsPage() {
         <div className="flex h-56 items-center justify-center rounded-2xl border border-cream-300 bg-white">
           <Loader2 className="h-8 w-8 animate-spin text-green-700" />
         </div>
+      ) : loadError ? (
+        <Card className="p-8 text-center">
+          <p className="text-sm text-danger">{loadError}</p>
+          <Button variant="secondary" size="sm" className="mt-4" onClick={() => void loadExams()}>
+            Try Again
+          </Button>
+        </Card>
       ) : exams.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-cream-300 bg-white p-12 text-center">
           <BookOpen className="mx-auto h-12 w-12 text-cream-400" />

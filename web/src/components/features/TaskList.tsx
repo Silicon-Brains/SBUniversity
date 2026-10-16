@@ -46,6 +46,7 @@ export function TaskList({ initial }: { initial?: TaskItem[] }) {
 
   const [items, setItems] = useState<TaskItem[]>(initial ?? []);
   const [loading, setLoading] = useState(!initial || initial.length === 0);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [filter, setFilter] = useState<(typeof filters)[number]>("all");
 
   const [submittingTask, setSubmittingTask] = useState<TaskItem | null>(null);
@@ -63,12 +64,14 @@ export function TaskList({ initial }: { initial?: TaskItem[] }) {
 
   const loadTasks = useCallback(async () => {
     setLoading(true);
+    setLoadError(null);
     try {
       const token = await resolveToken();
-      const data = await api<TaskItem[]>("/tasks", token ?? undefined).catch(() => []);
-      setItems(data || []);
+      const data = await api<TaskItem[]>("/tasks", token ?? undefined);
+      setItems(data);
     } catch (err) {
       console.error("Failed to fetch tasks:", err);
+      setLoadError(err instanceof Error ? err.message : "Failed to load tasks.");
     } finally {
       setLoading(false);
     }
@@ -108,8 +111,8 @@ export function TaskList({ initial }: { initial?: TaskItem[] }) {
         {
           method: "POST",
           body: JSON.stringify({
-            submission_note: submissionNote.trim() || undefined,
-            submission_url: submissionUrl.trim() || undefined,
+            note: submissionNote.trim() || undefined,
+            url: submissionUrl.trim() || undefined,
           }),
         }
       );
@@ -150,6 +153,13 @@ export function TaskList({ initial }: { initial?: TaskItem[] }) {
         <div className="flex h-56 items-center justify-center rounded-2xl border border-cream-300 bg-white">
           <Loader2 className="h-8 w-8 animate-spin text-green-700" />
         </div>
+      ) : loadError ? (
+        <Card className="p-8 text-center">
+          <p className="text-sm text-danger">{loadError}</p>
+          <Button variant="secondary" size="sm" className="mt-4" onClick={() => void loadTasks()}>
+            Try Again
+          </Button>
+        </Card>
       ) : shown.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-cream-300 bg-white p-12 text-center">
           <CheckCircle2 className="mx-auto h-12 w-12 text-cream-400" />

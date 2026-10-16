@@ -4,20 +4,25 @@
  */
 export function getBaseUrl(): string {
   const defaultUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000/api/v1";
-  if (typeof window !== "undefined") {
-    try {
-      const url = new URL(defaultUrl);
+  try {
+    const url = new URL(defaultUrl);
+    if (typeof window !== "undefined") {
+      if (url.hostname === "0.0.0.0" || url.hostname === "::") {
+        url.hostname = window.location.hostname || "localhost";
+      }
       if (window.location.hostname === "127.0.0.1" && url.hostname === "localhost") {
         url.hostname = "127.0.0.1";
-        return url.toString().replace(/\/$/, "");
-      }
-      if (window.location.hostname === "localhost" && url.hostname === "127.0.0.1") {
+      } else if (window.location.hostname === "localhost" && url.hostname === "127.0.0.1") {
         url.hostname = "localhost";
-        return url.toString().replace(/\/$/, "");
       }
-    } catch {
-      // fallback
     }
+    const path = url.pathname.replace(/\/+$/, "");
+    if (!path.endsWith("/api/v1")) {
+      url.pathname = `${path}/api/v1`;
+    }
+    return url.toString().replace(/\/$/, "");
+  } catch {
+    // Fall back to the configured value if it is not an absolute URL.
   }
   return defaultUrl;
 }
@@ -46,10 +51,21 @@ export async function api<T>(
   }
 
   const base = getBaseUrl();
-  const res = await fetch(`${base}${path}`, {
-    ...init,
-    headers,
-  });
+  let res: Response;
+  try {
+    res = await fetch(`${base}${path}`, {
+      ...init,
+      headers,
+    });
+  } catch (error) {
+    if (error instanceof TypeError) {
+      throw new Error(
+        `Unable to connect to the API at ${base}. Check that the backend is running and NEXT_PUBLIC_API_BASE_URL is reachable from this browser.`,
+        { cause: error }
+      );
+    }
+    throw error;
+  }
 
   if (!res.ok) {
     const errorBody = await res.json().catch(() => null);

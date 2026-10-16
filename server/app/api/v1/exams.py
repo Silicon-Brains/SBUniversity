@@ -34,7 +34,11 @@ async def list_exams(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    stmt = select(Exam).options(selectinload(Exam.task))
+    stmt = select(Exam).options(
+        selectinload(Exam.course),
+        selectinload(Exam.questions),
+        selectinload(Exam.task),
+    )
 
     if current_user.role == UserRole.STUDENT:
         # Enrolled published courses only
@@ -62,6 +66,8 @@ async def list_exams(
     for ex in exams:
         ex_dict = ExamResponse.model_validate(ex)
         ex_dict.task_points = ex.task.points if ex.task else 0
+        ex_dict.course_title = ex.course.title if ex.course else None
+        ex_dict.questions_count = len(ex.questions)
         result.append(ex_dict)
     return result
 
@@ -147,6 +153,16 @@ async def publish_exam(
 ):
     service = ExamService(db)
     return await service.publish_exam(exam_id, data, current_user)
+
+
+@router.post("/exams/{exam_id}/close", response_model=ExamResponse)
+async def close_exam(
+    exam_id: uuid.UUID,
+    current_user: User = Depends(require_role([UserRole.TEACHER, UserRole.ADMIN])),
+    db: AsyncSession = Depends(get_db),
+):
+    service = ExamService(db)
+    return await service.close_exam(exam_id, current_user)
 
 
 @router.post("/exams/{exam_id}/questions", response_model=QuestionResponse)
