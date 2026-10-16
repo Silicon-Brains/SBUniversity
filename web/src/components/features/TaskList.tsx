@@ -16,7 +16,9 @@ import {
   X,
   Loader2,
   AlertCircle,
+  Play,
 } from "lucide-react";
+import { YoutubeVideoTracker } from "@/components/features/YoutubeVideoTracker";
 
 export interface TaskItem {
   id: string;
@@ -24,12 +26,15 @@ export interface TaskItem {
   course_title?: string;
   title: string;
   description?: string | null;
+  resource_type?: "video" | "learning_source" | null;
+  resource_url?: string | null;
   type: "exam" | "assignment";
   verification: "auto" | "teacher_approval";
   points: number;
   due_at?: string | null;
   my_status?: "pending_review" | "completed" | "rejected" | "revoked" | null;
   points_earned?: number;
+  my_video_progress?: number | null;
 }
 
 const filters = ["all", "open", "pending", "done"] as const;
@@ -53,6 +58,8 @@ export function TaskList({ initial }: { initial?: TaskItem[] }) {
   const [submissionNote, setSubmissionNote] = useState("");
   const [submissionUrl, setSubmissionUrl] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [activeVideoTaskId, setActiveVideoTaskId] = useState<string | null>(null);
+  const [videoProgressError, setVideoProgressError] = useState<string | null>(null);
 
   const resolveToken = useCallback(async () => {
     let token = await getToken();
@@ -76,6 +83,47 @@ export function TaskList({ initial }: { initial?: TaskItem[] }) {
       setLoading(false);
     }
   }, [resolveToken]);
+
+  const reportVideoProgress = useCallback(
+    (taskId: string, progressPercent: number, videoDurationSeconds: number) => {
+      void (async () => {
+        try {
+          const token = await resolveToken();
+          const result = await api<{ progress_percent: number }>(
+            `/tasks/${taskId}/video-progress`,
+            token ?? undefined,
+            {
+              method: "POST",
+              body: JSON.stringify({
+                progress_percent: progressPercent,
+                video_duration_seconds: videoDurationSeconds,
+              }),
+            },
+          );
+          setVideoProgressError(null);
+          setItems((current) =>
+            current.map((task) =>
+              task.id === taskId
+                ? {
+                    ...task,
+                    my_video_progress: Math.max(
+                      task.my_video_progress ?? 0,
+                      result.progress_percent,
+                    ),
+                  }
+                : task,
+            ),
+          );
+        } catch (error) {
+          console.error("Failed to save video progress:", error);
+          setVideoProgressError(
+            error instanceof Error ? error.message : "Could not save video progress.",
+          );
+        }
+      })();
+    },
+    [resolveToken],
+  );
 
   useEffect(() => {
     loadTasks();
@@ -105,7 +153,7 @@ export function TaskList({ initial }: { initial?: TaskItem[] }) {
     setIsSubmitting(true);
     try {
       const token = await resolveToken();
-      await api(
+      const result = await api<{ status: string; points_awarded: number }>(
         `/tasks/${submittingTask.id}/complete`,
         token ?? undefined,
         {
@@ -119,7 +167,11 @@ export function TaskList({ initial }: { initial?: TaskItem[] }) {
 
       // Refresh list from DB
       await loadTasks();
-      toast(`Submitted "${submittingTask.title}" successfully! Points will be credited.`);
+      toast(
+        result.status === "completed"
+          ? `Completed "${submittingTask.title}". +${result.points_awarded} points added to your rank!`
+          : `Submitted "${submittingTask.title}" for teacher review.`
+      );
       setSubmittingTask(null);
     } catch (err: any) {
       toast(err?.message || "Failed to submit task.");
@@ -138,7 +190,7 @@ export function TaskList({ initial }: { initial?: TaskItem[] }) {
             role="tab"
             aria-selected={filter === f}
             onClick={() => setFilter(f)}
-            className={`h-10 rounded-full px-4 text-xs font-semibold transition-all ${
+            className={`min-h-11 rounded-full px-4 text-xs font-semibold transition-all ${
               filter === f
                 ? "bg-green-700 text-cream-50 shadow-sm"
                 : "bg-white text-green-700 ring-1 ring-cream-300 hover:bg-green-50"
@@ -154,14 +206,14 @@ export function TaskList({ initial }: { initial?: TaskItem[] }) {
           <Loader2 className="h-8 w-8 animate-spin text-green-700" />
         </div>
       ) : loadError ? (
-        <Card className="p-8 text-center">
+        <Card className="p-5 text-center sm:p-8">
           <p className="text-sm text-danger">{loadError}</p>
           <Button variant="secondary" size="sm" className="mt-4" onClick={() => void loadTasks()}>
             Try Again
           </Button>
         </Card>
       ) : shown.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-cream-300 bg-white p-12 text-center">
+        <div className="rounded-2xl border border-dashed border-cream-300 bg-white p-6 text-center sm:p-12">
           <CheckCircle2 className="mx-auto h-12 w-12 text-cream-400" />
           <h3 className="mt-3 font-heading text-lg font-bold text-green-900">No Tasks in this category</h3>
           <p className="mt-1 text-sm text-ink-muted">
@@ -179,36 +231,88 @@ export function TaskList({ initial }: { initial?: TaskItem[] }) {
             return (
               <Card
                 key={t.id}
-                className="flex flex-col justify-between gap-3 p-5 sm:p-6 transition-all hover:shadow-md"
+                className="flex min-w-0 flex-col justify-between gap-3 p-4 transition-all hover:shadow-md sm:p-6"
               >
                 <div className="space-y-1.5">
                   <div className="flex items-start justify-between gap-3">
-                    <h3 className="font-heading text-base font-bold text-green-900">{t.title}</h3>
+                    <h3 className="min-w-0 break-words font-heading text-base font-bold text-green-900">{t.title}</h3>
                     {status === "open" && <Badge tone="info">Open</Badge>}
                     {status === "pending" && <Badge tone="warning">Pending Review</Badge>}
                     {status === "done" && <Badge tone="success">Completed</Badge>}
                   </div>
 
-                  <p className="text-xs text-ink-muted">
+                  <p className="break-words text-xs text-ink-muted">
                     {t.course_title || "Course Task"} · Due: {dueStr} ·{" "}
-                    {t.type === "exam" ? "Awarded on passing exam" : "Requires faculty approval"}
+                    {t.type === "exam"
+                      ? "Awarded on passing exam"
+                      : t.verification === "auto"
+                        ? "Points awarded immediately on completion"
+                        : "Requires faculty approval"}
                   </p>
 
                   {t.description && (
                     <p className="text-xs text-ink line-clamp-2 mt-1">{t.description}</p>
                   )}
+                  {t.resource_url && t.resource_type === "learning_source" && (
+                    <a
+                      href={t.resource_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="mt-2 inline-flex min-h-11 items-center gap-1.5 text-xs font-semibold text-green-700 hover:underline"
+                    >
+                      <LinkIcon size={13} />
+                      Open learning resource
+                    </a>
+                  )}
+                  {t.resource_url && t.resource_type === "video" && status === "open" && (
+                    <div className="mt-2">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setActiveVideoTaskId((activeId) => activeId === t.id ? null : t.id)
+                        }
+                        className="inline-flex min-h-11 items-center gap-1.5 text-xs font-semibold text-green-700 hover:underline"
+                      >
+                        <Play size={13} />
+                        {activeVideoTaskId === t.id ? "Hide video" : "Watch video"}
+                      </button>
+                      {activeVideoTaskId === t.id && (
+                        <YoutubeVideoTracker
+                          taskId={t.id}
+                          videoUrl={t.resource_url}
+                          initialProgress={t.my_video_progress ?? 0}
+                          onProgress={(progress, duration) =>
+                            reportVideoProgress(t.id, progress, duration)
+                          }
+                        />
+                      )}
+                      <p className="mt-1 text-xs text-ink-muted">
+                        {Math.floor(t.my_video_progress ?? 0)}% watched · Watch at least 80% to submit.
+                      </p>
+                    </div>
+                  )}
                 </div>
 
-                <div className="mt-auto flex items-center justify-between gap-3 border-t border-cream-200 pt-3">
+                <div className="mt-auto flex flex-col items-stretch gap-3 border-t border-cream-200 pt-3 sm:flex-row sm:items-center sm:justify-between">
                   <PointsChip points={t.points} earned={status === "done"} />
                   {status === "open" &&
                     (t.type === "exam" ? (
-                      <Button href="/student/exams" size="sm" variant="secondary">
+                      <Button href="/student/exams" size="sm" variant="secondary" className="w-full justify-center sm:w-auto">
                         Go to Exam
                       </Button>
                     ) : (
-                      <Button variant="primary" size="sm" onClick={() => handleOpenSubmit(t)}>
-                        Submit for Review
+                      <Button
+                        variant="primary"
+                        size="sm"
+                        className="w-full justify-center sm:w-auto"
+                        disabled={t.resource_type === "video" && (t.my_video_progress ?? 0) < 80}
+                        onClick={() => handleOpenSubmit(t)}
+                      >
+                        {t.resource_type === "video" && (t.my_video_progress ?? 0) < 80
+                          ? "Watch 80% to Unlock"
+                          : t.verification === "auto"
+                            ? "Complete Task"
+                            : "Submit for Review"}
                       </Button>
                     ))}
                   {status === "pending" && (
@@ -228,24 +332,31 @@ export function TaskList({ initial }: { initial?: TaskItem[] }) {
         </div>
       )}
 
+      {videoProgressError && (
+        <div className="fixed inset-x-3 bottom-3 z-40 flex items-start gap-2 rounded-xl border border-danger/20 bg-white p-3 text-sm text-danger shadow-lg sm:inset-x-auto sm:right-4 sm:bottom-4 sm:max-w-sm">
+          <AlertCircle size={16} />
+          <span>{videoProgressError}</span>
+        </div>
+      )}
+
       {/* Task Submission Modal */}
       {submittingTask && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto p-3 sm:p-4">
           <div
             className="absolute inset-0 bg-green-900/50 backdrop-blur-sm"
             onClick={() => setSubmittingTask(null)}
           />
-          <div className="relative w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl border border-cream-300">
+          <div className="relative my-auto max-h-[calc(100dvh-1.5rem)] w-full max-w-lg overflow-y-auto rounded-2xl border border-cream-300 bg-white p-4 shadow-2xl sm:max-h-[calc(100dvh-2rem)] sm:p-6">
             <div className="flex items-start justify-between gap-3 border-b border-cream-200 pb-3">
-              <div>
+              <div className="min-w-0">
                 <h3 className="font-heading text-lg font-bold text-green-900">
                   Submit Task for Faculty Review
                 </h3>
-                <p className="text-xs text-ink-muted">{submittingTask.title}</p>
+                <p className="break-words text-xs text-ink-muted">{submittingTask.title}</p>
               </div>
               <button
                 onClick={() => setSubmittingTask(null)}
-                className="rounded-lg p-1 text-ink-muted hover:bg-cream-100 hover:text-ink"
+                className="grid h-11 w-11 shrink-0 place-items-center rounded-lg text-ink-muted hover:bg-cream-100 hover:text-ink"
               >
                 <X size={18} />
               </button>
@@ -279,20 +390,20 @@ export function TaskList({ initial }: { initial?: TaskItem[] }) {
                     value={submissionUrl}
                     onChange={(e) => setSubmissionUrl(e.target.value)}
                     placeholder="https://github.com/... or Google Drive link"
-                    className="h-10 w-full rounded-lg border border-cream-300 pl-9 pr-3 text-sm text-ink focus:border-green-700 focus:outline-none"
+                    className="h-11 w-full rounded-lg border border-cream-300 pl-9 pr-3 text-sm text-ink focus:border-green-700 focus:outline-none"
                   />
                 </div>
               </div>
 
-              <div className="flex items-center justify-end gap-3 pt-3 border-t border-cream-200">
+              <div className="flex flex-col-reverse items-stretch justify-end gap-2 border-t border-cream-200 pt-3 sm:flex-row sm:items-center sm:gap-3">
                 <button
                   type="button"
                   onClick={() => setSubmittingTask(null)}
-                  className="h-9 rounded-lg border border-cream-300 px-4 text-xs font-semibold text-ink-muted hover:bg-cream-100"
+                  className="min-h-11 rounded-lg border border-cream-300 px-4 text-xs font-semibold text-ink-muted hover:bg-cream-100 sm:min-h-9"
                 >
                   Cancel
                 </button>
-                <Button type="submit" variant="primary" size="sm" disabled={isSubmitting}>
+                <Button type="submit" variant="primary" size="sm" disabled={isSubmitting} className="w-full justify-center sm:w-auto">
                   {isSubmitting ? (
                     <>
                       <Loader2 size={14} className="animate-spin mr-1.5" /> Submitting...

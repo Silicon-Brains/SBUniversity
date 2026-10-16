@@ -254,9 +254,9 @@ export default function NewExamPage() {
   const totalCalculatedMarks = questions.reduce((sum, q) => sum + (Number(q.marks) || 0), 0);
 
   return (
-    <div className="space-y-6">
+    <div className="min-w-0 space-y-6">
       <div className="flex items-center gap-2">
-        <Button href="/teacher/exams" variant="secondary" size="sm">
+        <Button href="/teacher/exams" variant="secondary" size="sm" className="min-h-11">
           <ArrowLeft size={14} /> Back to Exams
         </Button>
       </div>
@@ -279,10 +279,10 @@ export default function NewExamPage() {
         </Card>
       ) : null}
 
-      <div className="grid gap-8 lg:grid-cols-12 lg:items-start">
+      <div className="grid min-w-0 gap-6 lg:grid-cols-12 lg:gap-8 lg:items-start">
         {/* Left Form: Exam Configuration */}
         <div className="space-y-6 lg:col-span-8">
-          <Card className="p-6 space-y-4">
+          <Card className="min-w-0 space-y-4 p-4 sm:p-6">
             <h3 className="font-heading text-lg font-bold text-green-900 border-b border-cream-200 pb-3">
               1. Basic Information & Parameters
             </h3>
@@ -298,7 +298,7 @@ export default function NewExamPage() {
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
                   placeholder="e.g. Advanced Graph Algorithms Midterm"
-                  className="h-11 w-full rounded-lg border border-cream-300 bg-white px-3 text-sm text-ink focus:border-green-700 focus:outline-none"
+                  className="h-11 min-w-0 max-w-full w-full rounded-lg border border-cream-300 bg-white px-3 text-sm text-ink focus:border-green-700 focus:outline-none"
                 />
               </div>
 
@@ -310,7 +310,7 @@ export default function NewExamPage() {
                   value={courseId}
                   onChange={(e) => setCourseId(e.target.value)}
                   disabled={loadingCourses || courses.length === 0}
-                  className="h-11 w-full rounded-lg border border-cream-300 bg-white px-3 text-sm text-ink focus:border-green-700 focus:outline-none"
+                  className="h-11 min-w-0 max-w-full w-full rounded-lg border border-cream-300 bg-white px-3 text-sm text-ink focus:border-green-700 focus:outline-none"
                 >
                   {loadingCourses ? (
                     <option value="">Loading courses...</option>
@@ -332,7 +332,7 @@ export default function NewExamPage() {
                   max="180"
                   value={durationMinutes}
                   onChange={(e) => setDurationMinutes(Number(e.target.value))}
-                  className="h-11 w-full rounded-lg border border-cream-300 bg-white px-3 text-sm text-ink focus:border-green-700 focus:outline-none"
+                  className="h-11 min-w-0 max-w-full w-full rounded-lg border border-cream-300 bg-white px-3 text-sm text-ink focus:border-green-700 focus:outline-none"
                 />
               </div>
 
@@ -345,7 +345,7 @@ export default function NewExamPage() {
                   min="0"
                   value={passMarks}
                   onChange={(e) => setPassMarks(Number(e.target.value))}
-                  className="h-11 w-full rounded-lg border border-cream-300 bg-white px-3 text-sm text-ink focus:border-green-700 focus:outline-none"
+                  className="h-11 min-w-0 max-w-full w-full rounded-lg border border-cream-300 bg-white px-3 text-sm text-ink focus:border-green-700 focus:outline-none"
                 />
               </div>
 
@@ -358,7 +358,7 @@ export default function NewExamPage() {
                   min="0"
                   value={taskPoints}
                   onChange={(e) => setTaskPoints(Number(e.target.value))}
-                  className="h-11 w-full rounded-lg border border-cream-300 bg-white px-3 text-sm font-bold text-bordo-700 focus:border-green-700 focus:outline-none"
+                  className="h-11 min-w-0 max-w-full w-full rounded-lg border border-cream-300 bg-white px-3 text-sm font-bold text-bordo-700 focus:border-green-700 focus:outline-none"
                 />
                 <span className="text-[11px] text-ink-muted">Earned automatically when student passes</span>
               </div>
@@ -372,7 +372,7 @@ export default function NewExamPage() {
                   required
                   value={startAt}
                   onChange={(e) => setStartAt(e.target.value)}
-                  className="h-11 w-full rounded-lg border border-cream-300 bg-white px-3 text-sm text-ink focus:border-green-700 focus:outline-none"
+                  className="h-11 min-w-0 max-w-full w-full rounded-lg border border-cream-300 bg-white px-3 text-sm text-ink focus:border-green-700 focus:outline-none"
                 />
               </div>
 
@@ -385,7 +385,7 @@ export default function NewExamPage() {
                   required
                   value={endAt}
                   onChange={(e) => setEndAt(e.target.value)}
-                  className="h-11 w-full rounded-lg border border-cream-300 bg-white px-3 text-sm text-ink focus:border-green-700 focus:outline-none"
+                  className="h-11 min-w-0 max-w-full w-full rounded-lg border border-cream-300 bg-white px-3 text-sm text-ink focus:border-green-700 focus:outline-none"
                 />
               </div>
             </div>
@@ -398,28 +398,28 @@ export default function NewExamPage() {
                 rows={2}
                 value={instructions}
                 onChange={(e) => setInstructions(e.target.value)}
-                className="w-full rounded-lg border border-cream-300 bg-white p-3 text-sm text-ink focus:border-green-700 focus:outline-none"
+                className="min-w-0 max-w-full w-full rounded-lg border border-cream-300 bg-white p-3 text-sm text-ink focus:border-green-700 focus:outline-none"
               />
             </div>
           </Card>
 
           {/* Question Bank Builder */}
           <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="min-w-0">
                 <h3 className="font-heading text-lg font-bold text-green-900">
                   2. Question Bank ({questions.length} Questions)
                 </h3>
                 <p className="text-xs text-ink-muted">Single choice MCQ with automated evaluation</p>
               </div>
-              <Button type="button" variant="secondary" size="sm" onClick={addQuestion}>
+              <Button type="button" variant="secondary" size="sm" className="min-h-11" onClick={addQuestion}>
                 <Plus size={15} /> Add Question
               </Button>
             </div>
 
             {questions.map((q, qIndex) => (
-              <Card key={qIndex} className="p-5 space-y-4 border-l-4 border-l-green-700">
-                <div className="flex items-center justify-between border-b border-cream-200 pb-2">
+              <Card key={qIndex} className="min-w-0 space-y-4 border-l-4 border-l-green-700 p-4 sm:p-5">
+                <div className="flex flex-wrap items-center justify-between gap-2 border-b border-cream-200 pb-2">
                   <span className="font-heading text-sm font-bold text-green-900">
                     Question #{qIndex + 1}
                   </span>
@@ -434,14 +434,14 @@ export default function NewExamPage() {
                         onChange={(e) => setQuestions((prev) =>
                           prev.map((item, i) => i === qIndex ? { ...item, marks: Number(e.target.value) } : item)
                         )}
-                        className="h-8 w-16 rounded border border-cream-300 px-2 text-ink"
+                        className="h-10 w-16 rounded border border-cream-300 px-2 text-ink"
                       />
                     </label>
                     {questions.length > 1 && (
                       <button
                         type="button"
                         onClick={() => removeQuestion(qIndex)}
-                        className="text-danger hover:text-danger/80"
+                        className="grid h-11 w-11 place-items-center rounded-lg text-danger hover:bg-danger-bg hover:text-danger/80"
                         title="Remove Question"
                       >
                         <Trash2 size={16} />
@@ -469,28 +469,30 @@ export default function NewExamPage() {
                     Options (Select radio for single correct answer):
                   </label>
                   {q.options.map((opt, optIndex) => (
-                    <div key={optIndex} className="flex items-center gap-2.5">
-                      <input
-                        type="radio"
-                        name={`correct-${qIndex}`}
-                        checked={opt.isCorrect}
-                        onChange={() => setCorrectOption(qIndex, optIndex)}
-                        className="h-4 w-4 text-green-700 focus:ring-green-700 cursor-pointer"
-                        title="Mark as correct answer"
-                      />
+                    <div key={optIndex} className="flex min-w-0 items-center gap-2">
+                      <label className="grid h-11 w-11 shrink-0 cursor-pointer place-items-center">
+                        <input
+                          type="radio"
+                          name={`correct-${qIndex}`}
+                          checked={opt.isCorrect}
+                          onChange={() => setCorrectOption(qIndex, optIndex)}
+                          className="h-5 w-5 text-green-700 focus:ring-green-700"
+                          aria-label={`Mark option ${optIndex + 1} as correct`}
+                        />
+                      </label>
                       <input
                         type="text"
                         value={opt.text}
                         onChange={(e) => updateOptionText(qIndex, optIndex, e.target.value)}
                         placeholder={`Option ${optIndex + 1}`}
-                        className={`h-9 flex-1 rounded-lg border px-3 text-xs focus:outline-none ${
+                        className={`h-10 min-w-0 flex-1 rounded-lg border px-2 text-xs focus:outline-none sm:px-3 ${
                           opt.isCorrect
                             ? "border-green-700 bg-green-50 font-semibold text-green-900"
                             : "border-cream-300 bg-white text-ink"
                         }`}
                       />
                       {opt.isCorrect && (
-                        <span className="text-[11px] font-bold text-success flex items-center gap-1">
+                        <span className="flex shrink-0 items-center gap-1 whitespace-nowrap text-[10px] font-bold text-success sm:text-[11px]">
                           <CheckCircle2 size={13} /> Correct
                         </span>
                       )}
@@ -508,7 +510,7 @@ export default function NewExamPage() {
                     onChange={(e) => setQuestions((prev) =>
                       prev.map((item, i) => i === qIndex ? { ...item, explanation: e.target.value } : item)
                     )}
-                    className="w-full rounded-lg border border-cream-300 bg-white p-2.5 text-sm text-ink focus:border-green-700 focus:outline-none"
+                    className="min-w-0 max-w-full w-full rounded-lg border border-cream-300 bg-white p-2.5 text-sm text-ink focus:border-green-700 focus:outline-none"
                   />
                 </div>
               </Card>
@@ -517,30 +519,30 @@ export default function NewExamPage() {
         </div>
 
         {/* Right Sticky Sidebar: Summary & Publish Actions */}
-        <div className="space-y-6 lg:col-span-4">
-          <Card className="sticky top-24 p-5 space-y-4">
+        <div className="min-w-0 space-y-6 lg:col-span-4">
+          <Card className="space-y-4 p-4 sm:p-5 lg:sticky lg:top-24">
             <h4 className="font-heading text-base font-bold text-green-900 border-b border-cream-200 pb-2">
               Exam Summary
             </h4>
 
             <div className="space-y-2 text-xs text-ink-muted">
-              <div className="flex justify-between">
+              <div className="flex justify-between gap-3">
                 <span>Total Questions:</span>
                 <span className="font-bold text-ink">{questions.length}</span>
               </div>
-              <div className="flex justify-between">
+              <div className="flex justify-between gap-3">
                 <span>Total Marks:</span>
                 <span className="font-bold text-ink">{totalCalculatedMarks}</span>
               </div>
-              <div className="flex justify-between">
+              <div className="flex justify-between gap-3">
                 <span>Pass Marks:</span>
                 <span className="font-bold text-ink">{passMarks}</span>
               </div>
-              <div className="flex justify-between">
+              <div className="flex justify-between gap-3">
                 <span>Duration:</span>
                 <span className="font-bold text-ink">{durationMinutes} mins</span>
               </div>
-              <div className="flex justify-between border-t border-cream-200 pt-2">
+              <div className="flex justify-between gap-3 border-t border-cream-200 pt-2">
                 <span>Linked Task Points:</span>
                 <span className="font-bold text-bordo-700">+{taskPoints} pts</span>
               </div>
@@ -551,7 +553,7 @@ export default function NewExamPage() {
                 type="button"
                 variant="primary"
                 size="md"
-                className="w-full"
+                className="min-h-11 w-full"
                 disabled={isSaving || loadingCourses || courses.length === 0}
                 onClick={() => void handleSubmit(true)}
               >
@@ -561,7 +563,7 @@ export default function NewExamPage() {
                 type="button"
                 variant="secondary"
                 size="md"
-                className="w-full"
+                className="min-h-11 w-full"
                 disabled={isSaving || loadingCourses || courses.length === 0}
                 onClick={() => void handleSubmit(false)}
               >

@@ -111,13 +111,13 @@ export default function AssistantPage() {
         title="Aarsh Intelligence"
         subtitle="Your personalized AI study companion powered by Google Gemini."
         action={
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <Badge tone="info">
               <ShieldAlert size={12} className="mr-1" /> Anti-Cheat Guarded
             </Badge>
             <button
               onClick={clearChat}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-cream-300 bg-white px-3 py-1.5 text-xs font-semibold text-green-700 hover:bg-cream-100"
+              className="inline-flex min-h-11 items-center gap-1.5 rounded-lg border border-cream-300 bg-white px-3 py-1.5 text-xs font-semibold text-green-700 hover:bg-cream-100"
             >
               <RefreshCw size={13} /> Clear chat
             </button>
@@ -133,7 +133,7 @@ export default function AssistantPage() {
             <button
               key={st.title}
               onClick={() => handleSend(st.prompt)}
-              className="flex flex-col items-start rounded-xl border border-cream-300 bg-white p-4 text-left transition-all hover:border-green-700 hover:shadow-md"
+              className="flex min-h-11 flex-col items-start rounded-xl border border-cream-300 bg-white p-4 text-left transition-all hover:border-green-700 hover:shadow-md"
             >
               <div className="mb-2 grid h-8 w-8 place-items-center rounded-lg bg-green-50 text-green-700">
                 <Icon size={16} />
@@ -146,15 +146,15 @@ export default function AssistantPage() {
       </div>
 
       {/* Main Chat Workspace */}
-      <Card className="flex h-[620px] flex-col overflow-hidden p-0">
+      <Card className="flex h-[min(620px,calc(100dvh-13rem))] min-h-[420px] flex-col overflow-hidden p-0">
         {/* Chat Header */}
-        <div className="flex items-center justify-between border-b border-cream-300 bg-green-700 px-6 py-4 text-cream-50">
-          <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-cream-300 bg-green-700 px-4 py-3 text-cream-50 sm:px-6 sm:py-4">
+          <div className="flex min-w-0 items-center gap-3">
             <span className="grid h-10 w-10 place-items-center rounded-lg bg-cream-200 text-green-900">
               <Bot size={22} />
             </span>
-            <div>
-              <h2 className="font-heading text-base font-bold !text-cream-50">Aarsh Intelligence Workspace</h2>
+            <div className="min-w-0">
+              <h2 className="break-words font-heading text-sm font-bold !text-cream-50 sm:text-base">Aarsh Intelligence Workspace</h2>
               <p className="text-xs text-cream-200">Interactive Academic Assistant</p>
             </div>
           </div>
@@ -165,14 +165,14 @@ export default function AssistantPage() {
         </div>
 
         {/* Messages Stream */}
-        <div className="flex-1 space-y-4 overflow-y-auto bg-cream-50/50 p-6">
+        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto bg-cream-50/50 p-3 sm:p-6">
           {messages.map((m) => (
             <div
               key={m.id}
               className={`flex flex-col ${m.sender === "user" ? "items-end" : "items-start"}`}
             >
               <div
-                className={`max-w-[85%] rounded-2xl px-5 py-3.5 shadow-sm leading-relaxed ${
+                className={`max-w-[90%] break-words rounded-2xl px-3 py-3 shadow-sm leading-relaxed sm:max-w-[85%] sm:px-5 sm:py-3.5 ${
                   m.sender === "user"
                     ? "bg-green-700 text-cream-50 rounded-br-none"
                     : "bg-white text-ink border border-cream-300 rounded-bl-none"
@@ -199,19 +199,19 @@ export default function AssistantPage() {
             e.preventDefault();
             handleSend();
           }}
-          className="flex items-center gap-3 border-t border-cream-300 bg-white p-4"
+          className="flex items-center gap-2 border-t border-cream-300 bg-white p-3 sm:gap-3 sm:p-4"
         >
           <input
             type="text"
             value={input}
             onChange={(e) => setInput(e.target.value)}
             placeholder="Type your question for Aarsh (e.g. explain dynamic programming or how certificates work)..."
-            className="h-12 flex-1 rounded-xl border border-cream-300 bg-cream-50/40 px-4 text-sm text-ink placeholder:text-ink-placeholder focus:border-green-700 focus:outline-none"
+            className="h-11 min-w-0 flex-1 rounded-xl border border-cream-300 bg-cream-50/40 px-3 text-sm text-ink placeholder:text-ink-placeholder focus:border-green-700 focus:outline-none sm:h-12 sm:px-4"
           />
           <button
             type="submit"
             disabled={!input.trim()}
-            className="inline-flex h-12 items-center gap-2 rounded-xl bg-bordo-700 px-6 font-heading text-sm font-semibold text-cream-50 transition-colors hover:bg-bordo-500 disabled:opacity-40"
+            className="inline-flex h-11 shrink-0 items-center gap-2 rounded-xl bg-bordo-700 px-4 font-heading text-sm font-semibold text-cream-50 transition-colors hover:bg-bordo-500 disabled:opacity-40 sm:h-12 sm:px-6"
           >
             <span>Ask</span>
             <Send size={16} />

@@ -8,7 +8,7 @@ export function Card({ className, ...rest }: HTMLAttributes<HTMLDivElement>) {
 export function StatCard({ value, label, hint }: { value: string | number; label: string; hint?: string }) {
   return (
     <Card>
-      <p className="font-heading text-3xl font-bold text-green-700">{value}</p>
+      <p className="font-heading text-2xl font-bold text-green-700 sm:text-3xl">{value}</p>
       <p className="mt-1 text-sm text-ink-muted">{label}</p>
       {hint && <p className="mt-2 text-xs text-ink-muted">{hint}</p>}
     </Card>
@@ -17,12 +17,12 @@ export function StatCard({ value, label, hint }: { value: string | number; label
 
 export function PageHeader({ title, subtitle, action }: { title: string; subtitle?: string; action?: React.ReactNode }) {
   return (
-    <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
-      <div>
-        <h1 className="text-2xl font-bold sm:text-3xl">{title}</h1>
+    <div className="mb-5 flex min-w-0 flex-col items-stretch justify-between gap-3 sm:mb-6 sm:flex-row sm:items-end">
+      <div className="min-w-0">
+        <h1 className="break-words text-2xl font-bold sm:text-3xl">{title}</h1>
         {subtitle && <p className="mt-1 text-ink-muted">{subtitle}</p>}
       </div>
-      {action}
+      {action && <div className="shrink-0">{action}</div>}
     </div>
   );
 }

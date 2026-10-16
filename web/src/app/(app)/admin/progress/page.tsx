@@ -104,7 +104,7 @@ export default function AdminProgressPage() {
       />
 
       {/* KPI Stats */}
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard value={total} label="Enrolled Students" hint="Active platform learners" />
         <StatCard value={totalPoints} label="Total Task Points" hint="Awarded from tasks/exams" />
         <StatCard value={totalTasks} label="Tasks Completed" hint="Across all departments" />
@@ -145,7 +145,7 @@ export default function AdminProgressPage() {
           {records.map((r) => (
             <Card
               key={r.student_id}
-              className="flex flex-col justify-between gap-4 p-5 transition-all hover:shadow-md sm:flex-row sm:items-center"
+              className="flex min-w-0 flex-col justify-between gap-4 p-4 transition-all hover:shadow-md sm:flex-row sm:items-center sm:p-5"
             >
               <div className="space-y-1.5 flex-1 min-w-0">
                 <div className="flex flex-wrap items-center gap-2">
@@ -160,7 +160,7 @@ export default function AdminProgressPage() {
                   )}
                 </div>
 
-                <p className="text-xs text-ink-muted">{r.email}</p>
+                <p className="break-words text-xs text-ink-muted">{r.email}</p>
 
                 {/* Courses Progress Bars */}
                 <div className="pt-2 space-y-2 max-w-lg">
@@ -169,11 +169,11 @@ export default function AdminProgressPage() {
                   ) : (
                     r.courses.map((c) => (
                       <div key={c.course_id} className="space-y-1">
-                        <div className="flex justify-between text-xs">
-                          <span className="font-medium text-green-900 truncate max-w-[280px]">
+                        <div className="flex min-w-0 justify-between gap-3 text-xs">
+                          <span className="min-w-0 flex-1 truncate font-medium text-green-900">
                             {c.course_title}
                           </span>
-                          <span className="font-mono text-ink-muted">{Math.round(c.progress_percent)}%</span>
+                          <span className="shrink-0 font-mono text-ink-muted">{Math.round(c.progress_percent)}%</span>
                         </div>
                         <div className="h-1.5 w-full overflow-hidden rounded-full bg-cream-200">
                           <div

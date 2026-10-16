@@ -1,6 +1,6 @@
 from typing import Any, Dict, List
 from fastapi import APIRouter, Depends
-from sqlalchemy import func, select
+from sqlalchemy import and_, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 from app.core.deps import get_current_user, require_role
@@ -9,7 +9,14 @@ from app.db.models.course import Course, Enrollment, EnrollmentStatus
 from app.db.models.exam import Exam, ExamStatus
 from app.db.models.notice import Notice, NoticeAudience, NoticeStatus
 from app.db.models.result import Result
-from app.db.models.task import CompletionStatus, Task, TaskCompletion, TaskStatus
+from app.db.models.task import (
+    CompletionStatus,
+    Task,
+    TaskAssignmentScope,
+    TaskCompletion,
+    TaskRecipient,
+    TaskStatus,
+)
 from app.db.models.user import User, UserRole
 from app.db.session import get_db
 from app.repositories.course_repository import CourseRepository
@@ -92,27 +99,43 @@ async def get_student_dashboard(
 
     # 4. Open tasks
     open_tasks = []
-    if enrolled_course_ids:
-        tasks_stmt = (
-            select(Task)
-            .options(selectinload(Task.course))
-            .where(Task.course_id.in_(enrolled_course_ids), Task.status == TaskStatus.ACTIVE)
-            .limit(6)
+    tasks_stmt = (
+        select(Task)
+        .options(selectinload(Task.course))
+        .where(
+            Task.status == TaskStatus.ACTIVE,
+            or_(
+                and_(
+                    Task.assignment_scope == TaskAssignmentScope.ALL_STUDENTS,
+                    Task.course_id.in_(enrolled_course_ids),
+                ),
+                and_(
+                    Task.assignment_scope == TaskAssignmentScope.SELECTED_STUDENTS,
+                    Task.id.in_(
+                        select(TaskRecipient.task_id).where(
+                            TaskRecipient.student_id == current_user.id
+                        )
+                    ),
+                ),
+            ),
         )
-        tasks_res = await db.execute(tasks_stmt)
-        for t in tasks_res.scalars().all():
-            comp_stmt = select(TaskCompletion).where(TaskCompletion.task_id == t.id, TaskCompletion.student_id == current_user.id)
-            comp = (await db.execute(comp_stmt)).scalar_one_or_none()
-            my_status = comp.status.value if comp else "open"
-            open_tasks.append({
-                "id": str(t.id),
-                "title": t.title,
-                "course": t.course.title if t.course else "Course",
-                "points": t.points,
-                "type": t.type.value,
-                "due": t.due_at.strftime("%b %d") if t.due_at else None,
-                "status": my_status,
-            })
+        .order_by(Task.created_at.desc())
+        .limit(6)
+    )
+    tasks_res = await db.execute(tasks_stmt)
+    for t in tasks_res.scalars().all():
+        comp_stmt = select(TaskCompletion).where(TaskCompletion.task_id == t.id, TaskCompletion.student_id == current_user.id)
+        comp = (await db.execute(comp_stmt)).scalar_one_or_none()
+        my_status = comp.status.value if comp else "open"
+        open_tasks.append({
+            "id": str(t.id),
+            "title": t.title,
+            "course": t.course.title if t.course else "Course",
+            "points": t.points,
+            "type": t.type.value,
+            "due": t.due_at.strftime("%b %d") if t.due_at else None,
+            "status": my_status,
+        })
 
     # 5. Points & Ranking
     task_service = TaskService(db)

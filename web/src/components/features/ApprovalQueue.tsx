@@ -24,6 +24,7 @@ export interface PendingTaskReview {
   task_title?: string;
   student_name?: string;
   points_awarded: number;
+  points_available?: number | null;
   status: string;
   submission_note?: string | null;
   submission_url?: string | null;
@@ -70,7 +71,7 @@ export function ApprovalQueue({ initial }: { initial?: PendingTaskReview[] }) {
     setProcessingId(item.id);
     try {
       const token = await resolveToken();
-      await api(
+      const result = await api<{ points_awarded?: number }>(
         `/tasks/completions/${item.id}/${approve ? "approve" : "reject"}`,
         token ?? undefined,
         {
@@ -84,7 +85,7 @@ export function ApprovalQueue({ initial }: { initial?: PendingTaskReview[] }) {
       setRows((r) => r.filter((x) => x.id !== item.id));
       toast(
         approve
-          ? `Approved "${item.task_title || "Task"}". +${item.points_awarded} Task Points credited to ${item.student_name}!`
+          ? `Approved "${item.task_title || "Task"}". +${result.points_awarded ?? item.points_available ?? item.points_awarded} Task Points credited to ${item.student_name}!`
           : `Submission from ${item.student_name} rejected.`
       );
     } catch (err: any) {
@@ -104,9 +105,9 @@ export function ApprovalQueue({ initial }: { initial?: PendingTaskReview[] }) {
 
   if (loadError) {
     return (
-      <Card className="p-8 text-center">
-        <p className="text-sm text-danger">{loadError}</p>
-        <Button variant="secondary" size="sm" className="mt-4" onClick={() => void loadPending()}>
+      <Card className="p-4 text-center sm:p-8">
+        <p className="break-words text-sm text-danger">{loadError}</p>
+        <Button variant="secondary" size="sm" className="mt-4 min-h-11" onClick={() => void loadPending()}>
           Try Again
         </Button>
       </Card>
@@ -115,14 +116,14 @@ export function ApprovalQueue({ initial }: { initial?: PendingTaskReview[] }) {
 
   if (!rows.length) {
     return (
-      <Card className="py-16 text-center">
+      <Card className="px-4 py-12 text-center sm:py-16">
         <div className="mx-auto mb-3 grid h-12 w-12 place-items-center rounded-full bg-green-50 text-green-700">
           <CheckCircle2 size={24} />
         </div>
         <h3 className="font-heading text-lg font-bold text-green-900">
           Approval Queue is Empty
         </h3>
-        <p className="mt-1 text-sm text-ink-muted">
+        <p className="mx-auto mt-1 max-w-xl text-sm text-ink-muted">
           All student lab and assignment submissions have been reviewed and awarded.
         </p>
       </Card>
@@ -131,23 +132,24 @@ export function ApprovalQueue({ initial }: { initial?: PendingTaskReview[] }) {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between text-xs text-ink-muted px-1">
+      <div className="flex flex-col gap-1 px-1 text-xs text-ink-muted sm:flex-row sm:items-center sm:justify-between">
         <span>{rows.length} pending student submission{rows.length !== 1 ? "s" : ""}</span>
-        <span>Approving instantly updates student points on the Live Ranking</span>
+        <span className="sm:text-right">Approving instantly updates student points on the Live Ranking</span>
       </div>
 
       {rows.map((s) => {
         const student = s.student_name || "Student";
         const task = s.task_title || "Course Assignment";
+        const pointsAvailable = s.points_available ?? s.points_awarded;
 
         return (
           <Card
             key={s.id}
-            className="flex flex-col justify-between gap-4 p-5 transition-all hover:shadow-md sm:flex-row sm:items-center"
+            className="flex min-w-0 flex-col justify-between gap-4 p-4 transition-all hover:shadow-md sm:flex-row sm:items-center sm:p-5"
           >
             <div className="min-w-0 space-y-1">
               <div className="flex flex-wrap items-center gap-2">
-                <span className="font-heading text-base font-bold text-green-900">
+                <span className="break-words font-heading text-base font-bold text-green-900">
                   {student}
                 </span>
                 <span className="text-ink-muted">·</span>
@@ -155,9 +157,9 @@ export function ApprovalQueue({ initial }: { initial?: PendingTaskReview[] }) {
               </div>
 
               {s.submission_note && (
-                <p className="flex items-center gap-1.5 text-xs text-ink-muted">
+                <p className="flex min-w-0 items-center gap-1.5 text-xs text-ink-muted">
                   <FileText size={13} className="text-green-700 shrink-0" />
-                  <span className="truncate max-w-md">{s.submission_note}</span>
+                  <span className="min-w-0 truncate max-w-md">{s.submission_note}</span>
                 </p>
               )}
 
@@ -176,11 +178,12 @@ export function ApprovalQueue({ initial }: { initial?: PendingTaskReview[] }) {
               )}
             </div>
 
-            <div className="flex items-center gap-3 pt-2 sm:pt-0 shrink-0">
-              <PointsChip points={s.points_awarded} />
+            <div className="flex flex-wrap items-center gap-2 pt-2 sm:shrink-0 sm:pt-0">
+              <PointsChip points={pointsAvailable} />
               <Button
                 variant="danger"
                 size="sm"
+                className="min-h-11 flex-1 sm:flex-none"
                 onClick={() => decide(s, false)}
                 disabled={processingId === s.id}
               >
@@ -189,6 +192,7 @@ export function ApprovalQueue({ initial }: { initial?: PendingTaskReview[] }) {
               <Button
                 variant="primary"
                 size="sm"
+                className="min-h-11 flex-1 sm:flex-none"
                 onClick={() => decide(s, true)}
                 disabled={processingId === s.id}
               >
@@ -196,7 +200,7 @@ export function ApprovalQueue({ initial }: { initial?: PendingTaskReview[] }) {
                   <Loader2 size={14} className="animate-spin" />
                 ) : (
                   <>
-                    <Check size={14} /> Approve (+{s.points_awarded} pts)
+                    <Check size={14} /> Approve (+{pointsAvailable} pts)
                   </>
                 )}
               </Button>

@@ -263,17 +263,17 @@ export default function ExamRunnerPage({ params }: { params: Promise<{ id: strin
   return (
     <div className="-mx-4 -my-6 min-h-screen bg-cream-50 sm:-mx-6 sm:-my-8">
       {/* Sticky Green-700 Top Bar */}
-      <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-green-900/40 bg-green-700 px-4 text-cream-50 sm:px-8 shadow-md">
-        <div className="flex items-center gap-3">
+      <header className="sticky top-0 z-30 flex min-h-16 flex-wrap items-center justify-between gap-x-3 gap-y-2 border-b border-green-900/40 bg-green-700 px-3 py-2 text-cream-50 shadow-md sm:px-8">
+        <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-3">
           <Link
             href="/student/exams"
-            className="flex items-center gap-1 text-xs text-cream-200 hover:text-cream-50"
+            className="inline-flex min-h-11 shrink-0 items-center gap-1 text-xs text-cream-200 hover:text-cream-50"
           >
             <ChevronLeft size={16} /> Exit Exam
           </Link>
           <span className="text-cream-300">|</span>
-          <div>
-            <h1 className="font-heading text-sm font-bold sm:text-base !text-cream-50 truncate max-w-[200px] sm:max-w-md">
+          <div className="min-w-0">
+            <h1 className="max-w-[150px] truncate font-heading text-sm font-bold !text-cream-50 sm:max-w-md sm:text-base">
               {examTitle}
             </h1>
             <p className="text-[11px] text-cream-200">Official Exam Engine</p>
@@ -281,10 +281,10 @@ export default function ExamRunnerPage({ params }: { params: Promise<{ id: strin
         </div>
 
         {/* Server Authoritative Timer Chip */}
-        <div className="flex items-center gap-3">
+        <div className="ml-auto flex shrink-0 items-center gap-2 sm:gap-3">
           <div
             className={clsx(
-              "flex items-center gap-2 rounded-full px-4 py-1.5 font-mono text-sm font-bold shadow-sm transition-colors",
+              "flex min-h-11 items-center gap-2 rounded-full px-3 py-1.5 font-mono text-sm font-bold shadow-sm transition-colors sm:px-4",
               isUrgent
                 ? "bg-danger text-white animate-pulse"
                 : isWarning
@@ -303,7 +303,7 @@ export default function ExamRunnerPage({ params }: { params: Promise<{ id: strin
             variant="primary"
             size="sm"
             onClick={() => setIsConfirmOpen(true)}
-            className="hidden sm:inline-flex"
+            className="inline-flex"
           >
             Submit Exam
           </Button>
@@ -312,10 +312,10 @@ export default function ExamRunnerPage({ params }: { params: Promise<{ id: strin
 
       {/* Main Runner Body */}
       <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
-        <div className="grid gap-8 lg:grid-cols-12">
+        <div className="grid min-w-0 gap-5 sm:gap-8 lg:grid-cols-12">
           {/* Question Navigator Palette */}
           <div className="lg:col-span-4 order-2 lg:order-1">
-            <div className="sticky top-24 rounded-2xl border border-cream-300 bg-white p-5 shadow-sm">
+            <div className="rounded-2xl border border-cream-300 bg-white p-4 shadow-sm lg:sticky lg:top-24 lg:p-5">
               <div className="flex items-center justify-between border-b border-cream-200 pb-3">
                 <span className="font-heading text-sm font-bold text-green-900">
                   Question Palette
@@ -326,7 +326,7 @@ export default function ExamRunnerPage({ params }: { params: Promise<{ id: strin
               </div>
 
               {/* Grid of question buttons */}
-              <div className="mt-4 grid grid-cols-4 gap-2.5">
+              <div className="mt-4 grid grid-cols-4 gap-2">
                 {questions.map((q, idx) => {
                   const isCurrent = idx === currentIndex;
                   const isAnswered = !!selectedAnswers[q.id];
@@ -336,7 +336,7 @@ export default function ExamRunnerPage({ params }: { params: Promise<{ id: strin
                       key={q.id}
                       onClick={() => setCurrentIndex(idx)}
                       className={clsx(
-                        "flex h-11 items-center justify-center rounded-xl font-heading text-sm font-bold transition-all",
+                        "flex min-h-11 items-center justify-center rounded-xl font-heading text-sm font-bold transition-all",
                         isCurrent
                           ? "ring-2 ring-bordo-700 bg-cream-200 text-green-900 shadow-sm"
                           : isAnswered
@@ -378,8 +378,8 @@ export default function ExamRunnerPage({ params }: { params: Promise<{ id: strin
           </div>
 
           {/* Active Question Surface */}
-          <div className="lg:col-span-8 order-1 lg:order-2 space-y-6">
-            <div className="rounded-2xl border border-cream-300 bg-white p-6 shadow-sm sm:p-8">
+          <div className="min-w-0 space-y-5 order-1 lg:order-2 lg:col-span-8 sm:space-y-6">
+            <div className="rounded-2xl border border-cream-300 bg-white p-4 shadow-sm sm:p-8">
               <div className="flex items-center justify-between border-b border-cream-200 pb-4">
                 <span className="font-heading text-sm font-bold text-green-700">
                   Question {currentIndex + 1} of {questions.length}
@@ -390,7 +390,7 @@ export default function ExamRunnerPage({ params }: { params: Promise<{ id: strin
               </div>
 
               {/* Question Text */}
-              <h2 className="mt-5 font-heading text-lg font-bold leading-snug text-green-900 sm:text-xl">
+              <h2 className="mt-5 break-words font-heading text-lg font-bold leading-snug text-green-900 sm:text-xl">
                 {currentQ.text}
               </h2>
 
@@ -404,7 +404,7 @@ export default function ExamRunnerPage({ params }: { params: Promise<{ id: strin
                       key={opt.id}
                       onClick={() => handleSelectOption(currentQ.id, opt.id)}
                       className={clsx(
-                        "flex cursor-pointer items-center gap-3.5 rounded-xl border p-4 text-sm transition-all duration-150",
+                        "flex min-h-12 cursor-pointer items-center gap-3.5 rounded-xl border p-3 text-sm transition-all duration-150 sm:p-4",
                         isSelected
                           ? "border-green-700 bg-green-50 text-green-900 font-semibold shadow-sm"
                           : "border-cream-300 bg-white text-ink hover:bg-cream-50"
@@ -424,7 +424,7 @@ export default function ExamRunnerPage({ params }: { params: Promise<{ id: strin
               </div>
 
               {/* Question Footer Nav */}
-              <div className="mt-8 flex items-center justify-between border-t border-cream-200 pt-4">
+              <div className="mt-8 flex items-center justify-between gap-2 border-t border-cream-200 pt-4">
                 <Button
                   variant="secondary"
                   size="sm"
@@ -459,8 +459,8 @@ export default function ExamRunnerPage({ params }: { params: Promise<{ id: strin
 
       {/* Confirmation Modal */}
       {isConfirmOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-green-900/60 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-md rounded-2xl border border-cream-300 bg-white p-6 shadow-2xl">
+        <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-green-900/60 p-3 backdrop-blur-sm sm:p-4">
+          <div className="my-auto max-h-[calc(100dvh-1.5rem)] w-full max-w-md overflow-y-auto rounded-2xl border border-cream-300 bg-white p-4 shadow-2xl sm:max-h-[calc(100dvh-2rem)] sm:p-6">
             <h3 className="font-heading text-lg font-bold text-green-900">
               Submit your Exam Attempt?
             </h3>
@@ -470,10 +470,11 @@ export default function ExamRunnerPage({ params }: { params: Promise<{ id: strin
               answers are locked and graded automatically.
             </p>
 
-            <div className="mt-6 flex justify-end gap-3">
+            <div className="mt-6 flex flex-col-reverse justify-end gap-2 sm:flex-row sm:gap-3">
               <Button
                 variant="secondary"
                 size="sm"
+                className="w-full justify-center sm:w-auto"
                 onClick={() => setIsConfirmOpen(false)}
               >
                 Continue Answering
@@ -481,6 +482,7 @@ export default function ExamRunnerPage({ params }: { params: Promise<{ id: strin
               <Button
                 variant="primary"
                 size="sm"
+                className="w-full justify-center sm:w-auto"
                 onClick={() => handleSubmit(false)}
                 disabled={isSubmitting}
               >

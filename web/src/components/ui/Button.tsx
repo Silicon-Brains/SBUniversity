@@ -9,7 +9,11 @@ const styles: Record<Variant, string> = {
   ghost: "bg-transparent text-green-700 hover:bg-green-100 border border-transparent",
   danger: "bg-white text-danger border border-danger hover:bg-danger-bg",
 };
-const sizes = { sm: "h-9 px-3 text-sm", md: "h-11 px-5 text-sm", lg: "h-12 px-6 text-base" };
+const sizes = {
+  sm: "min-h-11 px-3 text-sm sm:h-9 sm:min-h-0",
+  md: "min-h-11 px-5 text-sm",
+  lg: "h-12 px-6 text-base",
+};
 
 interface Props extends ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: Variant; size?: keyof typeof sizes; href?: string; children: ReactNode;

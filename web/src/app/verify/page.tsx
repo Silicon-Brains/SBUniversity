@@ -20,25 +20,25 @@ export default function VerifyIndexPage() {
   return (
     <div className="min-h-screen bg-cream-50">
       <header className="border-b border-cream-300 bg-white px-4 py-4 sm:px-8">
-        <div className="mx-auto flex max-w-5xl items-center justify-between">
+        <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-3">
           <Link href="/" className="flex items-center gap-2.5">
             <span className="grid h-9 w-9 place-items-center rounded-lg bg-green-700 text-cream-200">
               <GraduationCap size={20} />
             </span>
             <span className="font-heading text-lg font-bold text-green-700">SBUniversity</span>
           </Link>
-          <Button href="/" variant="secondary" size="sm">
+          <Button href="/" variant="secondary" size="sm" className="max-w-full">
             <ArrowLeft size={14} /> Back to University
           </Button>
         </div>
       </header>
 
-      <main className="mx-auto max-w-2xl px-4 py-16 sm:px-6">
+      <main className="mx-auto max-w-2xl px-3 py-10 sm:px-6 sm:py-16">
         <div className="text-center">
           <span className="inline-flex items-center gap-1.5 rounded-full bg-green-100 px-3 py-1 text-xs font-semibold text-green-700 mb-3">
             <ShieldCheck size={14} /> Official Credential Registry
           </span>
-          <h1 className="font-heading text-3xl font-bold text-green-900 sm:text-4xl">
+          <h1 className="font-heading text-2xl font-bold text-green-900 sm:text-4xl">
             Verify a Certificate or Student ID
           </h1>
           <p className="mt-2 text-sm text-ink-muted">
@@ -46,7 +46,7 @@ export default function VerifyIndexPage() {
           </p>
         </div>
 
-        <Card className="mt-8 p-6 sm:p-8 shadow-xl">
+        <Card className="mt-6 p-4 shadow-xl sm:mt-8 sm:p-8">
           <form onSubmit={handleVerify} className="space-y-4">
             <div>
               <label htmlFor="verify-code" className="block text-xs font-semibold uppercase tracking-wider text-green-900 mb-2">
@@ -79,7 +79,7 @@ export default function VerifyIndexPage() {
             <div className="flex flex-wrap gap-2">
               <button
                 onClick={() => setCode("SBU-CERT-2026-PY01")}
-                className="inline-flex items-center gap-1.5 rounded-lg border border-cream-300 bg-cream-50 px-3 py-1.5 text-xs font-mono font-medium text-green-900 hover:bg-cream-100"
+                className="inline-flex min-h-11 max-w-full items-center gap-1.5 rounded-lg border border-cream-300 bg-cream-50 px-3 py-1.5 text-left text-xs font-mono font-medium text-green-900 hover:bg-cream-100"
               >
                 <Award size={13} className="text-green-700" />
                 SBU-CERT-2026-PY01

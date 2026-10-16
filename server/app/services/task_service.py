@@ -1,12 +1,26 @@
 import uuid
+import re
 from datetime import datetime, timezone
 from typing import List, Optional, Tuple
+from urllib.parse import parse_qs, urlparse
 from fastapi import HTTPException, status
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.logging import logger
-from app.db.models.course import Course
-from app.db.models.task import CompletionStatus, Task, TaskCompletion, TaskStatus, TaskType, TaskVerification
-from app.db.models.user import User, UserRole
+from app.db.models.course import Course, Enrollment, EnrollmentStatus
+from app.db.models.task import (
+    CompletionStatus,
+    Task,
+    TaskAssignmentScope,
+    TaskCompletion,
+    TaskRecipient,
+    TaskStatus,
+    TaskType,
+    TaskVerification,
+    TaskResourceType,
+    TaskVideoProgress,
+)
+from app.db.models.user import User, UserRole, UserStatus
 from app.repositories.audit_repository import AuditRepository
 from app.repositories.course_repository import CourseRepository
 from app.repositories.task_repository import TaskRepository
@@ -25,13 +39,49 @@ class TaskService:
         self.ranking_service = RankingService(db)
 
     async def create_assignment_task(self, data: TaskCreate, creator: User) -> Task:
-        # Check course ownership if teacher
+        if data.resource_type == TaskResourceType.VIDEO and data.resource_url:
+            parsed_url = urlparse(str(data.resource_url))
+            host = (parsed_url.hostname or "").lower()
+            path_parts = [part for part in parsed_url.path.split("/") if part]
+            video_id = None
+            if host == "youtu.be" and path_parts:
+                video_id = path_parts[0]
+            elif host in {"youtube.com", "www.youtube.com", "m.youtube.com"}:
+                if parsed_url.path == "/watch":
+                    video_id = parse_qs(parsed_url.query).get("v", [None])[0]
+                elif len(path_parts) > 1 and path_parts[0] in {"embed", "shorts", "live"}:
+                    video_id = path_parts[1]
+            if not video_id or not re.fullmatch(r"[A-Za-z0-9_-]{11}", video_id):
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                    detail="Video tasks require a valid YouTube video URL",
+                )
+
         course = await self.course_repo.get_by_id(data.course_id)
         if not course:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Course not found")
 
-        if creator.role == UserRole.TEACHER and course.teacher_id != creator.id:
-            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You can only create tasks for your own courses")
+        if data.assignment_scope == TaskAssignmentScope.SELECTED_STUDENTS:
+            target_ids = set(data.target_student_ids)
+            if len(target_ids) != len(data.target_student_ids):
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                    detail="A student can only be selected once",
+                )
+            students_stmt = (
+                select(User.id)
+                .where(
+                    User.id.in_(target_ids),
+                    User.role == UserRole.STUDENT,
+                    User.status == UserStatus.ACTIVE,
+                )
+            )
+            active_student_ids = set((await self.db.execute(students_stmt)).scalars().all())
+            if active_student_ids != target_ids:
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                    detail="Every selected student must be an active student",
+                )
 
         task = Task(
             course_id=data.course_id,
@@ -43,9 +93,32 @@ class TaskService:
             points=data.points,
             verification=TaskVerification.TEACHER_APPROVAL,
             due_at=data.due_at,
+            resource_type=data.resource_type,
+            resource_url=str(data.resource_url) if data.resource_url else None,
+            assignment_scope=data.assignment_scope,
             status=TaskStatus.ACTIVE,
         )
+        if data.assignment_scope == TaskAssignmentScope.SELECTED_STUDENTS:
+            task.recipients = [
+                TaskRecipient(student_id=student_id)
+                for student_id in data.target_student_ids
+            ]
         return await self.task_repo.create(task)
+
+    async def student_can_access_task(self, task: Task, student_id: uuid.UUID) -> bool:
+        if task.assignment_scope == TaskAssignmentScope.SELECTED_STUDENTS:
+            recipient_stmt = select(TaskRecipient.student_id).where(
+                TaskRecipient.task_id == task.id,
+                TaskRecipient.student_id == student_id,
+            )
+            return (await self.db.execute(recipient_stmt)).scalar_one_or_none() is not None
+
+        enrollment_stmt = select(Enrollment.student_id).where(
+            Enrollment.student_id == student_id,
+            Enrollment.course_id == task.course_id,
+            Enrollment.status == EnrollmentStatus.ACTIVE,
+        )
+        return (await self.db.execute(enrollment_stmt)).scalar_one_or_none() is not None
 
     async def update_task(self, task_id: uuid.UUID, data: TaskUpdate, user: User) -> Task:
         task = await self.task_repo.get_by_id(task_id)
@@ -53,7 +126,7 @@ class TaskService:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Task not found")
 
         course = await self.course_repo.get_by_id(task.course_id)
-        if user.role == UserRole.TEACHER and course and course.teacher_id != user.id:
+        if user.role == UserRole.TEACHER and task.created_by != user.id and course and course.teacher_id != user.id:
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Cannot edit tasks from another teacher's course")
 
         if data.title is not None:
@@ -71,7 +144,7 @@ class TaskService:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Task not found")
 
         course = await self.course_repo.get_by_id(task.course_id)
-        if user.role == UserRole.TEACHER and course and course.teacher_id != user.id:
+        if user.role == UserRole.TEACHER and task.created_by != user.id and course and course.teacher_id != user.id:
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Cannot archive tasks from another teacher's course")
 
         task.status = TaskStatus.ARCHIVED
@@ -85,33 +158,106 @@ class TaskService:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Only assignment tasks can be submitted manually")
         if task.status != TaskStatus.ACTIVE:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="This task is not active")
+        if not await self.student_can_access_task(task, student_id):
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Task not found")
 
-        # Check existing completion
+        if task.resource_type == TaskResourceType.VIDEO:
+            progress_stmt = select(TaskVideoProgress.progress_percent).where(
+                TaskVideoProgress.task_id == task_id,
+                TaskVideoProgress.student_id == student_id,
+            )
+            progress = (await self.db.execute(progress_stmt)).scalar_one_or_none()
+            if progress is None or progress < 80:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Watch at least 80% of the video before submitting this task",
+                )
+
         completion = await self.task_repo.get_completion(task_id, student_id)
         now = datetime.now(timezone.utc)
+        is_auto_graded = task.verification == TaskVerification.AUTO
         if completion:
             if completion.status == CompletionStatus.COMPLETED:
                 raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Task is already completed")
-            # Update submission
             completion.submission_note = note
             completion.submission_url = url
-            completion.status = CompletionStatus.PENDING_REVIEW
+            completion.status = (
+                CompletionStatus.COMPLETED if is_auto_graded else CompletionStatus.PENDING_REVIEW
+            )
+            completion.points_awarded = task.points if is_auto_graded else 0
             completion.submitted_at = now
+            completion.completed_at = now if is_auto_graded else None
         else:
             completion = TaskCompletion(
                 task_id=task_id,
                 student_id=student_id,
-                status=CompletionStatus.PENDING_REVIEW,
+                status=CompletionStatus.COMPLETED if is_auto_graded else CompletionStatus.PENDING_REVIEW,
                 submission_note=note,
                 submission_url=url,
-                points_awarded=0,
+                points_awarded=task.points if is_auto_graded else 0,
                 submitted_at=now,
+                completed_at=now if is_auto_graded else None,
             )
             self.db.add(completion)
 
         await self.db.commit()
         await self.db.refresh(completion)
+        if is_auto_graded:
+            await self.ranking_service.refresh_student(student_id)
         return completion
+
+    async def update_video_progress(
+        self,
+        task_id: uuid.UUID,
+        student_id: uuid.UUID,
+        progress_percent: float,
+        video_duration_seconds: float,
+    ) -> float:
+        task = await self.task_repo.get_by_id(task_id)
+        if not task or task.resource_type != TaskResourceType.VIDEO:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Video task not found")
+        if task.status != TaskStatus.ACTIVE or not await self.student_can_access_task(task, student_id):
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Video task not found")
+
+        completion = await self.task_repo.get_completion(task_id, student_id)
+        if completion and completion.status in {
+            CompletionStatus.PENDING_REVIEW,
+            CompletionStatus.COMPLETED,
+        }:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Video progress cannot be changed after submission",
+            )
+
+        progress_stmt = select(TaskVideoProgress).where(
+            TaskVideoProgress.task_id == task_id,
+            TaskVideoProgress.student_id == student_id,
+        )
+        progress = (await self.db.execute(progress_stmt)).scalar_one_or_none()
+        now = datetime.now(timezone.utc)
+        if progress:
+            last_updated = progress.updated_at
+            if last_updated.tzinfo is None:
+                last_updated = last_updated.replace(tzinfo=timezone.utc)
+            elapsed_seconds = max(0.0, (now - last_updated).total_seconds())
+            max_increment = elapsed_seconds / video_duration_seconds * 100 * 2.25
+            progress.progress_percent = max(
+                progress.progress_percent,
+                min(progress_percent, progress.progress_percent + max_increment),
+            )
+            progress.updated_at = now
+        else:
+            progress = TaskVideoProgress(
+                task_id=task_id,
+                student_id=student_id,
+                progress_percent=0,
+                updated_at=now,
+            )
+            self.db.add(progress)
+
+        await self.db.commit()
+        await self.db.refresh(progress)
+        return progress.progress_percent
 
     async def approve_assignment(self, completion_id: uuid.UUID, reviewer: User, review_note: Optional[str]) -> TaskCompletion:
         completion = await self.task_repo.get_completion_by_id(completion_id)
@@ -120,7 +266,7 @@ class TaskService:
 
         task = completion.task
         course = await self.course_repo.get_by_id(task.course_id)
-        if reviewer.role == UserRole.TEACHER and course and course.teacher_id != reviewer.id:
+        if reviewer.role == UserRole.TEACHER and task.created_by != reviewer.id and course and course.teacher_id != reviewer.id:
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You can only approve tasks for your own courses")
 
         now = datetime.now(timezone.utc)
@@ -145,7 +291,7 @@ class TaskService:
 
         task = completion.task
         course = await self.course_repo.get_by_id(task.course_id)
-        if reviewer.role == UserRole.TEACHER and course and course.teacher_id != reviewer.id:
+        if reviewer.role == UserRole.TEACHER and task.created_by != reviewer.id and course and course.teacher_id != reviewer.id:
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You can only review tasks for your own courses")
 
         now = datetime.now(timezone.utc)

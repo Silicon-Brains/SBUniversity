@@ -86,14 +86,19 @@ function ConfirmModal({
 }: ConfirmModalProps) {
   if (!open) return null;
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto p-3 sm:items-center sm:p-4">
       {/* Backdrop */}
       <div
         className="absolute inset-0 bg-green-900/50 backdrop-blur-sm"
         onClick={onCancel}
       />
       {/* Dialog */}
-      <div className="relative w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="confirm-action-title"
+        className="relative my-auto max-h-[calc(100dvh-1.5rem)] w-full max-w-md overflow-y-auto rounded-2xl bg-white p-4 shadow-2xl sm:max-h-[calc(100dvh-2rem)] sm:p-6"
+      >
         <div className="mb-4 flex items-start gap-3">
           <span
             className={clsx(
@@ -110,14 +115,14 @@ function ConfirmModal({
             )}
           </span>
           <div>
-            <h3 className="font-heading text-base font-bold text-green-900">
+            <h3 id="confirm-action-title" className="font-heading text-base font-bold text-green-900">
               {title}
             </h3>
             <p className="mt-1 text-sm text-ink-muted">{message}</p>
           </div>
         </div>
-        <div className="flex justify-end gap-3">
-          <Button variant="ghost" size="sm" onClick={onCancel} disabled={loading}>
+        <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end sm:gap-3">
+          <Button variant="ghost" size="sm" className="w-full justify-center sm:w-auto" onClick={onCancel} disabled={loading}>
             Cancel
           </Button>
           <Button
@@ -125,11 +130,11 @@ function ConfirmModal({
             size="sm"
             onClick={onConfirm}
             disabled={loading}
-            className={
-              variant === "primary"
-                ? "bg-green-700 text-white hover:bg-green-800 border-transparent"
-                : ""
-            }
+            className={clsx(
+              "w-full justify-center sm:w-auto",
+              variant === "primary" &&
+                "bg-green-700 text-white hover:bg-green-800 border-transparent"
+            )}
           >
             {loading ? (
               <Loader2 size={14} className="animate-spin" />
@@ -383,7 +388,7 @@ export function UsersTable({ initial }: { initial?: unknown }) {
       />
 
       {/* ── Live KPI Stat Cards ── */}
-      <div className="mb-6 grid grid-cols-2 gap-4 lg:grid-cols-4">
+      <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard
           value={stats ? stats.total : statsLoading ? "…" : "—"}
           label="Total users"
@@ -419,12 +424,12 @@ export function UsersTable({ initial }: { initial?: unknown }) {
               value={q}
               onChange={(e) => setQ(e.target.value)}
               placeholder="Search name, email, code…"
-              className="h-10 w-full rounded-lg border border-cream-300 bg-white pl-9 pr-9 text-sm text-ink placeholder:text-ink-placeholder focus:border-green-700 focus:outline-none"
+              className="h-11 w-full rounded-lg border border-cream-300 bg-white pl-9 pr-9 text-sm text-ink placeholder:text-ink-placeholder focus:border-green-700 focus:outline-none"
             />
             {q && (
               <button
                 onClick={() => setQ("")}
-                className="absolute inset-y-0 right-2 my-auto grid h-6 w-6 place-items-center rounded text-ink-placeholder hover:text-ink"
+                className="absolute inset-y-0 right-1 my-auto grid h-10 w-10 place-items-center rounded text-ink-placeholder hover:text-ink"
               >
                 <X size={14} />
               </button>
@@ -438,7 +443,7 @@ export function UsersTable({ initial }: { initial?: unknown }) {
                 key={r}
                 onClick={() => setRoleFilter(r)}
                 className={clsx(
-                  "h-9 rounded-lg px-3 text-xs font-semibold capitalize transition-colors",
+                  "min-h-11 rounded-lg px-3 text-xs font-semibold capitalize transition-colors",
                   roleFilter === r
                     ? "bg-green-700 text-cream-50 shadow-sm"
                     : "bg-white text-green-700 border border-cream-300 hover:bg-cream-100"
@@ -456,7 +461,7 @@ export function UsersTable({ initial }: { initial?: unknown }) {
               }}
               disabled={loading || statsLoading}
               title="Refresh"
-              className="grid h-9 w-9 place-items-center rounded-lg border border-cream-300 bg-white text-green-700 hover:bg-cream-100 disabled:opacity-50"
+              className="grid h-11 w-11 shrink-0 place-items-center rounded-lg border border-cream-300 bg-white text-green-700 hover:bg-cream-100 disabled:opacity-50"
             >
               <RefreshCw size={15} className={clsx((loading || statsLoading) && "animate-spin")} />
             </button>
@@ -489,7 +494,7 @@ export function UsersTable({ initial }: { initial?: unknown }) {
         )}
 
         {/* ── Table ── */}
-        <div className="overflow-x-auto rounded-xl border border-cream-300 bg-white shadow-sm">
+        <div className="hidden max-w-full overflow-x-auto rounded-xl border border-cream-300 bg-white shadow-sm md:block">
           <table className="w-full min-w-[780px] text-left text-sm">
             <thead className="bg-cream-100 text-xs font-semibold uppercase tracking-wide text-green-900">
               <tr>
@@ -621,9 +626,116 @@ export function UsersTable({ initial }: { initial?: unknown }) {
           </table>
         </div>
 
+        <div className="space-y-3 md:hidden">
+          {loading ? (
+            Array.from({ length: 4 }).map((_, i) => (
+              <div
+                key={i}
+                className="animate-pulse rounded-xl border border-cream-300 bg-white p-4 shadow-sm"
+              >
+                <div className="h-4 w-2/3 rounded bg-cream-200" />
+                <div className="mt-3 h-3 w-1/2 rounded bg-cream-200" />
+                <div className="mt-4 h-10 rounded bg-cream-100" />
+              </div>
+            ))
+          ) : users.length === 0 ? (
+            !error && (
+              <div className="rounded-xl border border-cream-300 bg-white px-4 py-10 text-center">
+                <CheckCircle2 size={36} className="mx-auto mb-3 text-cream-300" />
+                <p className="text-sm font-medium text-ink-muted">
+                  No users match your filters.
+                </p>
+              </div>
+            )
+          ) : (
+            users.map((u) => (
+              <article
+                key={u.id}
+                className="min-w-0 rounded-xl border border-cream-300 bg-white p-4 shadow-sm"
+              >
+                <div className="flex min-w-0 items-start gap-3">
+                  <Avatar name={u.full_name} url={u.avatar_url} />
+                  <div className="min-w-0 flex-1">
+                    <p className="break-words font-semibold text-green-900">{u.full_name}</p>
+                    <p className="break-all text-xs text-ink-muted">{u.email}</p>
+                  </div>
+                  {u.status === "active" ? (
+                    <Badge tone="success">Active</Badge>
+                  ) : u.status === "suspended" ? (
+                    <Badge tone="danger">Suspended</Badge>
+                  ) : (
+                    <Badge tone="neutral">Deleted</Badge>
+                  )}
+                </div>
+
+                <dl className="mt-4 grid grid-cols-2 gap-x-3 gap-y-3 border-t border-cream-200 pt-3 text-xs">
+                  <div className="min-w-0">
+                    <dt className="text-ink-muted">Department / Code</dt>
+                    <dd className="mt-0.5 break-words font-medium text-ink">
+                      {getDept(u)}
+                      {getCode(u) && (
+                        <span className="block break-all font-mono text-[11px] text-green-700">
+                          {getCode(u)}
+                        </span>
+                      )}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="text-ink-muted">Joined</dt>
+                    <dd className="mt-0.5 font-medium text-ink">
+                      {new Date(u.created_at).toLocaleDateString("en-IN", {
+                        day: "numeric",
+                        month: "short",
+                        year: "numeric",
+                      })}
+                    </dd>
+                  </div>
+                  <div className="col-span-2 flex flex-wrap items-center gap-2">
+                    <dt className="text-ink-muted">Role</dt>
+                    <dd className="flex flex-wrap items-center gap-2">
+                      <Badge tone={ROLE_TONE[u.role]}>{u.role}</Badge>
+                      <select
+                        aria-label={`Change role for ${u.full_name}`}
+                        value={u.role}
+                        onChange={(e) => handleRoleChange(u, e.target.value as UserRole)}
+                        className="min-h-11 rounded-lg border border-cream-300 bg-cream-50 px-3 text-xs font-medium capitalize text-green-900 focus:border-green-700 focus:outline-none"
+                      >
+                        <option value="student">Student</option>
+                        <option value="teacher">Teacher</option>
+                        <option value="admin">Admin</option>
+                      </select>
+                    </dd>
+                  </div>
+                </dl>
+
+                {u.status !== "deleted" && (
+                  <Button
+                    size="sm"
+                    variant={u.status === "active" ? "danger" : "secondary"}
+                    onClick={() => handleStatusToggle(u)}
+                    className="mt-4 min-h-11 w-full justify-center gap-1.5"
+                  >
+                    {u.status === "active" ? (
+                      <>
+                        <UserMinus size={14} aria-hidden />
+                        Suspend
+                      </>
+                    ) : (
+                      <>
+                        <UserPlus size={14} aria-hidden />
+                        Reactivate
+                      </>
+                    )}
+                  </Button>
+                )}
+              </article>
+            ))
+          )}
+        </div>
+
         {/* ── Pagination ── */}
         {totalPages > 1 && (
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <p className="text-xs text-ink-muted">
               Page {page} of {totalPages}
             </p>

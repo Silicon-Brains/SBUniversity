@@ -193,14 +193,14 @@ export function RankBoard({
   return (
     <div className="space-y-6">
       {/* Filters & Live Status Bar */}
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-cream-300 bg-white p-3.5 shadow-sm">
-        <div className="flex flex-wrap items-center gap-2">
+      <div className="flex flex-col items-stretch justify-between gap-3 rounded-xl border border-cream-300 bg-white p-3.5 shadow-sm sm:flex-row sm:items-center">
+        <div className="flex min-w-0 flex-wrap items-center gap-2">
           <Filter size={16} className="text-green-700" />
           <span className="text-xs font-semibold text-green-900">Leaderboard Scope:</span>
           <select
             value={selectedCourseId}
             onChange={(e) => setSelectedCourseId(e.target.value)}
-            className="h-9 rounded-lg border border-cream-300 bg-cream-50 px-3 text-xs font-medium text-ink focus:border-green-700 focus:outline-none"
+            className="h-11 w-full min-w-0 rounded-lg border border-cream-300 bg-cream-50 px-3 text-xs font-medium text-ink focus:border-green-700 focus:outline-none sm:w-auto sm:max-w-[min(24rem,55vw)]"
           >
             <option value="overall">All Courses (University Overall)</option>
             {courses.map((c) => (
@@ -211,11 +211,11 @@ export function RankBoard({
           </select>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center justify-between gap-3 sm:justify-end">
           <button
             onClick={() => fetchData(false)}
             disabled={refreshing}
-            className="inline-flex items-center gap-1.5 text-xs font-medium text-ink-muted hover:text-green-900 transition-colors"
+            className="inline-flex min-h-11 items-center gap-1.5 rounded-lg px-2 text-xs font-medium text-ink-muted transition-colors hover:text-green-900"
           >
             <RefreshCw size={12} className={clsx(refreshing && "animate-spin text-green-700")} />
             <span>Sync</span>
@@ -233,7 +233,7 @@ export function RankBoard({
           <Loader2 className="h-8 w-8 animate-spin text-green-700" />
         </div>
       ) : top.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-cream-300 bg-white p-12 text-center">
+        <div className="rounded-2xl border border-dashed border-cream-300 bg-white p-6 text-center sm:p-12">
           <Trophy className="mx-auto h-12 w-12 text-cream-400" />
           <h3 className="mt-3 font-heading text-lg font-bold text-green-900">Leaderboard Initializing</h3>
           <p className="mt-1 text-sm text-ink-muted">
@@ -241,7 +241,7 @@ export function RankBoard({
           </p>
         </div>
       ) : (
-        <div className="grid grid-cols-2 gap-4 lg:grid-cols-4 lg:items-end" aria-live="polite">
+        <div className="grid grid-cols-1 gap-4 min-[420px]:grid-cols-2 lg:grid-cols-4 lg:items-end" aria-live="polite">
           {top.map((s, i) => {
             const isRank1 = i === 0;
             const tier = RANK_TIERS[i] || RANK_TIERS[3];
@@ -250,10 +250,10 @@ export function RankBoard({
               <Card
                 key={s.student_id || i}
                 className={clsx(
-                  "relative text-center p-6 transition-all duration-200 hover:-translate-y-1 hover:shadow-xl",
+                  "relative min-w-0 p-4 text-center transition-all duration-200 hover:-translate-y-1 hover:shadow-xl sm:p-6",
                   tier.cardBorder,
                   tier.glow,
-                  isRank1 && "col-span-2 py-8 lg:col-span-1 lg:order-none order-first"
+                  isRank1 && "min-[420px]:col-span-2 py-6 lg:col-span-1 lg:order-none order-first sm:py-8"
                 )}
               >
                 {/* 3D Rank Level Badge Emblem */}
@@ -305,7 +305,7 @@ export function RankBoard({
                 <p className="text-[11px] font-semibold uppercase tracking-wider text-ink-muted">
                   Rank #{s.rank || i + 1}
                 </p>
-                <h3 className="font-heading text-base font-bold text-green-900 truncate">
+                <h3 className="break-words font-heading text-base font-bold text-green-900">
                   {s.name}
                 </h3>
 
@@ -330,22 +330,22 @@ export function RankBoard({
 
       {/* "Your Rank" Sticky Banner Card */}
       {myRank && myRank.points > 0 && (
-        <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl bg-gradient-to-r from-green-800 to-green-700 px-6 py-4.5 text-cream-50 shadow-lg">
-          <div className="flex items-center gap-3">
+        <div className="flex flex-col items-start justify-between gap-4 rounded-2xl bg-gradient-to-r from-green-800 to-green-700 px-4 py-4 text-cream-50 shadow-lg sm:flex-row sm:items-center sm:px-6">
+          <div className="flex min-w-0 items-center gap-3">
             <span className="grid h-12 w-12 place-items-center rounded-xl bg-cream-200 text-green-900 font-heading text-lg font-bold shadow-inner">
               #{myRank.rank ?? "-"}
             </span>
-            <div>
+            <div className="min-w-0">
               <p className="text-xs uppercase tracking-wider text-cream-300 font-semibold">
                 Your Current University Ranking Standing
               </p>
-              <p className="font-heading text-lg font-bold text-cream-50">
+              <p className="break-words font-heading text-lg font-bold text-cream-50">
                 {user?.fullName ?? "You"} (Student)
               </p>
             </div>
           </div>
 
-          <div className="text-right">
+          <div className="text-left sm:text-right">
             <p className="font-heading text-2xl font-bold text-cream-200">
               {myRank.points} pts
             </p>
@@ -357,8 +357,58 @@ export function RankBoard({
       )}
 
       {/* Full Leaderboard Table */}
-      <div className="overflow-x-auto rounded-xl border border-cream-300 bg-white shadow-sm">
-        <table className="w-full min-w-[500px] text-left text-sm">
+      <div className="space-y-2 md:hidden" aria-label="Leaderboard">
+        {students.length === 0 ? (
+          <div className="rounded-xl border border-cream-300 bg-white p-5 text-center text-xs text-ink-muted">
+            No ranked students recorded for this scope yet.
+          </div>
+        ) : (
+          students.map((s, idx) => {
+            const rankNum = s.rank || idx + 1;
+            const isMe = s.student_id === myRank?.student_id;
+            return (
+              <Card
+                key={s.student_id || idx}
+                className={clsx(
+                  "flex min-w-0 items-center gap-3 p-3",
+                  isMe && "border-green-700 bg-green-50/90",
+                )}
+              >
+                <span
+                  className={clsx(
+                    "grid h-9 w-9 shrink-0 place-items-center rounded-full text-xs font-bold",
+                    rankNum === 1
+                      ? "bg-rank-gold text-white"
+                      : rankNum === 2
+                        ? "bg-rank-silver text-white"
+                        : rankNum === 3
+                          ? "bg-rank-bronze text-white"
+                          : "bg-cream-200 text-green-900",
+                  )}
+                >
+                  {rankNum}
+                </span>
+                {s.avatar_url ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={s.avatar_url} alt="" className="h-9 w-9 shrink-0 rounded-full object-cover" />
+                ) : null}
+                <div className="min-w-0 flex-1">
+                  <p className="break-words text-sm font-semibold text-green-900">
+                    {s.name} {isMe && <span className="text-[10px] font-bold text-green-700">YOU</span>}
+                  </p>
+                  <p className="text-xs text-ink-muted">{s.tasks_completed} tasks completed</p>
+                </div>
+                <span className="shrink-0 text-right font-heading text-sm font-bold text-green-900">
+                  {s.points} pts
+                </span>
+              </Card>
+            );
+          })
+        )}
+      </div>
+
+      <div className="hidden overflow-x-auto rounded-xl border border-cream-300 bg-white shadow-sm md:block">
+        <table className="w-full text-left text-sm">
           <caption className="sr-only">Comprehensive University Task Points Leaderboard</caption>
           <thead className="bg-cream-100 text-xs font-semibold uppercase text-green-900">
             <tr>

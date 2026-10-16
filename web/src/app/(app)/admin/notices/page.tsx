@@ -138,7 +138,7 @@ export default function AdminNoticesPage() {
         title="Notice Board Control"
         subtitle="Publish, pin, and manage broadcast announcements across the student and faculty body."
         action={
-          <Button variant="primary" size="md" onClick={() => setIsModalOpen(true)}>
+          <Button variant="primary" size="md" className="w-full justify-center sm:w-auto" onClick={() => setIsModalOpen(true)}>
             <Plus size={16} /> Broadcast New Notice
           </Button>
         }
@@ -166,7 +166,7 @@ export default function AdminNoticesPage() {
           <Card key={n.id} className="p-5 sm:p-6 space-y-3 transition-all hover:shadow-md">
             <div className="flex flex-wrap items-center justify-between gap-2 border-b border-cream-200 pb-3">
               <div className="flex flex-wrap items-center gap-2">
-                <h3 className="font-heading text-base font-bold text-green-900">{n.title}</h3>
+                <h3 className="break-words font-heading text-base font-bold text-green-900">{n.title}</h3>
                 {n.is_pinned && (
                   <Badge tone="info">
                     <Pin size={11} className="mr-0.5" /> Pinned
@@ -184,7 +184,7 @@ export default function AdminNoticesPage() {
                 <button
                   onClick={() => togglePin(n.id)}
                   disabled={processingId === n.id}
-                  className={`rounded-lg p-1.5 transition-colors ${
+                  className={`grid min-h-11 min-w-11 place-items-center rounded-lg transition-colors ${
                     n.is_pinned
                       ? "bg-cream-200 text-green-900"
                       : "text-ink-muted hover:bg-cream-100"
@@ -196,7 +196,7 @@ export default function AdminNoticesPage() {
                 <button
                   onClick={() => deleteNotice(n.id)}
                   disabled={processingId === n.id}
-                  className="rounded-lg p-1.5 text-danger hover:bg-danger-bg"
+                  className="grid min-h-11 min-w-11 place-items-center rounded-lg text-danger hover:bg-danger-bg"
                   title="Delete notice"
                 >
                   <Trash2 size={16} />
@@ -204,10 +204,10 @@ export default function AdminNoticesPage() {
               </div>
             </div>
 
-            <p className="text-sm text-ink leading-relaxed">{n.body}</p>
+            <p className="break-words text-sm leading-relaxed text-ink">{n.body}</p>
 
-            <div className="flex items-center justify-between pt-2 text-xs text-ink-muted">
-              <span>Author: <b className="text-ink">{n.author_name || "Administration"}</b></span>
+            <div className="flex flex-wrap items-center justify-between gap-2 pt-2 text-xs text-ink-muted">
+              <span className="break-words">Author: <b className="text-ink">{n.author_name || "Administration"}</b></span>
               <span>{new Date(n.created_at).toLocaleDateString()}</span>
             </div>
           </Card>
@@ -217,10 +217,10 @@ export default function AdminNoticesPage() {
 
       {/* Broadcast Notice Modal */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-green-900/60 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-lg rounded-2xl border border-cream-300 bg-white p-6 shadow-2xl">
+        <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-green-900/60 p-3 backdrop-blur-sm sm:items-center sm:p-4">
+          <div role="dialog" aria-modal="true" aria-labelledby="broadcast-notice-title" className="my-auto max-h-[calc(100dvh-1.5rem)] w-full max-w-lg overflow-y-auto rounded-2xl border border-cream-300 bg-white p-4 shadow-2xl sm:max-h-[calc(100dvh-2rem)] sm:p-6">
             <h3 className="font-heading text-lg font-bold text-green-900 border-b border-cream-200 pb-3">
-              Broadcast University Announcement
+              <span id="broadcast-notice-title">Broadcast University Announcement</span>
             </h3>
 
             <form onSubmit={handleCreate} className="mt-4 space-y-4">
@@ -234,7 +234,7 @@ export default function AdminNoticesPage() {
                   value={newTitle}
                   onChange={(e) => setNewTitle(e.target.value)}
                   placeholder="e.g. Schedule for Final Exam Registration"
-                  className="h-10 w-full rounded-lg border border-cream-300 bg-white px-3 text-sm text-ink focus:border-green-700 focus:outline-none"
+                  className="h-11 w-full rounded-lg border border-cream-300 bg-white px-3 text-sm text-ink focus:border-green-700 focus:outline-none"
                 />
               </div>
 
@@ -246,7 +246,7 @@ export default function AdminNoticesPage() {
                   <select
                     value={newPriority}
                     onChange={(e) => setNewPriority(e.target.value as NoticeItem["priority"])}
-                    className="h-10 w-full rounded-lg border border-cream-300 bg-white px-2 text-xs text-ink focus:border-green-700 focus:outline-none"
+                    className="h-11 w-full rounded-lg border border-cream-300 bg-white px-2 text-xs text-ink focus:border-green-700 focus:outline-none"
                   >
                     <option value="normal">Normal / General</option>
                     <option value="important">Important</option>
@@ -261,7 +261,7 @@ export default function AdminNoticesPage() {
                   <select
                     value={newTarget}
                     onChange={(e) => setNewTarget(e.target.value as "all" | "students" | "teachers")}
-                    className="h-10 w-full rounded-lg border border-cream-300 bg-white px-2 text-xs text-ink focus:border-green-700 focus:outline-none"
+                    className="h-11 w-full rounded-lg border border-cream-300 bg-white px-2 text-xs text-ink focus:border-green-700 focus:outline-none"
                   >
                     <option value="all">All University Members</option>
                     <option value="students">Students Only</option>
@@ -284,7 +284,7 @@ export default function AdminNoticesPage() {
                 />
               </div>
 
-              <label className="flex items-center gap-2 text-xs font-medium text-green-900 cursor-pointer">
+              <label               className="flex min-h-11 items-center gap-2 text-xs font-medium text-green-900 cursor-pointer">
                 <input
                   type="checkbox"
                   checked={isPinned}
@@ -294,7 +294,7 @@ export default function AdminNoticesPage() {
                 <span>Pin this notice to top of Notice Board</span>
               </label>
 
-              <div className="flex justify-end gap-2 border-t border-cream-200 pt-4">
+              <div className="flex flex-col-reverse gap-2 border-t border-cream-200 pt-4 sm:flex-row sm:justify-end">
                 <Button
                   type="button"
                   variant="secondary"
@@ -304,10 +304,11 @@ export default function AdminNoticesPage() {
                     resetForm();
                   }}
                   disabled={isSaving}
+                  className="w-full justify-center sm:w-auto"
                 >
                   Cancel
                 </Button>
-                <Button type="submit" variant="primary" size="sm" disabled={isSaving}>
+                <Button type="submit" variant="primary" size="sm" disabled={isSaving} className="w-full justify-center sm:w-auto">
                   {isSaving ? <Loader2 size={14} className="animate-spin" /> : "Publish Notice"}
                 </Button>
               </div>

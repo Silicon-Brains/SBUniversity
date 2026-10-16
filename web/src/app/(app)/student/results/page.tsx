@@ -116,7 +116,7 @@ export default function StudentResultsPage() {
           <Loader2 className="h-8 w-8 animate-spin text-green-700" />
         </div>
       ) : results.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-cream-300 bg-white p-12 text-center shadow-sm">
+        <div className="rounded-2xl border border-dashed border-cream-300 bg-white p-6 text-center shadow-sm sm:p-12">
           <FileCheck className="mx-auto h-12 w-12 text-cream-400" />
           <h3 className="mt-3 font-heading text-lg font-bold text-green-900">No Exam Results Yet</h3>
           <p className="mt-1 text-sm text-ink-muted">
@@ -149,7 +149,7 @@ export default function StudentResultsPage() {
               >
                 <div className="space-y-1.5">
                   <div className="flex flex-wrap items-center gap-2">
-                    <h3 className="font-heading text-base font-bold text-green-900">
+                    <h3 className="min-w-0 break-words font-heading text-base font-bold text-green-900">
                       {examTitle}
                     </h3>
                     {res.passed ? (
@@ -185,10 +185,11 @@ export default function StudentResultsPage() {
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2 shrink-0 pt-2 sm:pt-0">
+                <div className="flex w-full items-center gap-2 pt-2 sm:w-auto sm:shrink-0 sm:pt-0">
                   <Button
                     variant="primary"
                     size="sm"
+                    className="w-full justify-center sm:w-auto"
                     onClick={() => handleDownloadPdf(res)}
                     disabled={downloadingId === res.id}
                   >

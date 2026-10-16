@@ -122,8 +122,8 @@ export default function StudentDashboard() {
   return (
     <div className="space-y-6">
       {/* Top Welcome Header */}
-      <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl bg-gradient-to-r from-cream-100 to-cream-200 border border-cream-300 p-6 shadow-sm">
-        <div className="space-y-1">
+      <div className="flex flex-col items-stretch justify-between gap-5 rounded-2xl border border-cream-300 bg-gradient-to-r from-cream-100 to-cream-200 p-4 shadow-sm sm:flex-row sm:items-center sm:p-6">
+        <div className="min-w-0 space-y-1">
           <div className="flex items-center gap-2">
             <span className="rounded-full bg-green-700 px-2.5 py-0.5 text-[11px] font-bold text-cream-50 uppercase tracking-wider">
               Enrolled Student
@@ -140,11 +140,11 @@ export default function StudentDashboard() {
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
-          <Button href="/student/profile" variant="secondary" size="md">
+        <div className="grid grid-cols-1 gap-2 sm:flex sm:shrink-0 sm:items-center sm:gap-3">
+          <Button href="/student/profile" variant="secondary" size="md" className="w-full justify-center sm:w-auto">
             <IdCard size={16} /> View Virtual ID
           </Button>
-          <Button href="/student/exams" variant="primary" size="md">
+          <Button href="/student/exams" variant="primary" size="md" className="w-full justify-center sm:w-auto">
             Take Live Exam
           </Button>
         </div>
@@ -152,14 +152,14 @@ export default function StudentDashboard() {
 
       {/* Urgent Notice Alert Banner */}
       {urgentNotice && (
-        <div className="flex items-center justify-between gap-3 rounded-xl border border-bordo-200 bg-bordo-50 p-4 text-xs text-bordo-800 shadow-sm">
-          <div className="flex items-center gap-2">
+        <div className="flex flex-col items-start justify-between gap-3 rounded-xl border border-bordo-200 bg-bordo-50 p-4 text-xs text-bordo-800 shadow-sm sm:flex-row sm:items-center">
+          <div className="flex min-w-0 items-start gap-2">
             <Megaphone size={16} className="shrink-0 text-bordo-700" />
-            <span>
+            <span className="min-w-0 break-words">
               <b>{urgentNotice.title}:</b> {urgentNotice.body}
             </span>
           </div>
-          <Link href="/notices" className="font-bold underline shrink-0 hover:text-bordo-900">
+          <Link href="/notices" className="min-h-11 inline-flex items-center font-bold underline shrink-0 hover:text-bordo-900">
             View All Notices
           </Link>
         </div>
@@ -192,9 +192,9 @@ export default function StudentDashboard() {
       {/* Courses & Action Tasks Grid */}
       <div className="grid gap-6 lg:grid-cols-2">
         {/* Enrolled Courses */}
-        <Card className="flex flex-col justify-between p-6">
+        <Card className="flex min-w-0 flex-col justify-between p-4 sm:p-6">
           <div>
-            <div className="flex items-center justify-between border-b border-cream-200 pb-3 mb-4">
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-cream-200 pb-3 mb-4">
               <div className="flex items-center gap-2">
                 <BookOpen size={18} className="text-green-700" />
                 <h2 className="font-heading text-base font-bold text-green-900">
@@ -217,7 +217,7 @@ export default function StudentDashboard() {
                 {coursesList.map((c) => (
                   <li key={c.id} className="space-y-1.5">
                     <div className="flex justify-between text-sm">
-                      <span className="font-semibold text-green-900 truncate max-w-[220px]">
+                      <span className="min-w-0 flex-1 truncate font-semibold text-green-900 sm:max-w-[220px]">
                         {c.code} – {c.title}
                       </span>
                       <span className="font-mono text-xs font-bold text-green-700">
@@ -242,7 +242,7 @@ export default function StudentDashboard() {
             )}
           </div>
 
-          <div className="mt-6 border-t border-cream-200 pt-4 flex items-center justify-between">
+          <div className="mt-6 flex flex-wrap items-center justify-between gap-2 border-t border-cream-200 pt-4">
             <span className="text-xs text-ink-muted">
               {certsCount} Certificate{certsCount === 1 ? "" : "s"} earned
             </span>
@@ -257,9 +257,9 @@ export default function StudentDashboard() {
         </Card>
 
         {/* Next Up: Upcoming Exams & Tasks */}
-        <Card className="flex flex-col justify-between p-6">
+        <Card className="flex min-w-0 flex-col justify-between p-4 sm:p-6">
           <div>
-            <div className="flex items-center justify-between border-b border-cream-200 pb-3 mb-4">
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-cream-200 pb-3 mb-4">
               <div className="flex items-center gap-2">
                 <Clock size={18} className="text-green-700" />
                 <h2 className="font-heading text-base font-bold text-green-900">
@@ -281,7 +281,7 @@ export default function StudentDashboard() {
             ) : (
               <ul className="divide-y divide-cream-200">
                 {openTasksList.slice(0, 3).map((t) => (
-                  <li key={t.id} className="flex items-center justify-between gap-3 py-3">
+                  <li key={t.id} className="flex min-w-0 items-center justify-between gap-3 py-3">
                     <div className="min-w-0">
                       <p className="font-semibold text-sm text-green-900 truncate">{t.title}</p>
                       <p className="text-xs text-ink-muted">
@@ -295,11 +295,11 @@ export default function StudentDashboard() {
             )}
           </div>
 
-          <div className="mt-4 border-t border-cream-200 pt-4 flex items-center justify-between gap-3">
-            <Button href="/student/tasks" variant="primary" size="sm">
+          <div className="mt-4 grid grid-cols-1 gap-2 border-t border-cream-200 pt-4 sm:flex sm:items-center sm:justify-between">
+            <Button href="/student/tasks" variant="primary" size="sm" className="w-full justify-center sm:w-auto">
               Open Task List
             </Button>
-            <Button href="/student/exams" variant="secondary" size="sm">
+            <Button href="/student/exams" variant="secondary" size="sm" className="w-full justify-center sm:w-auto">
               Scheduled Exams
             </Button>
           </div>
@@ -307,7 +307,7 @@ export default function StudentDashboard() {
       </div>
 
       {/* Aarsh Intelligence Helper Banner */}
-      <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-green-700/20 bg-green-50 p-5 shadow-sm">
+      <div className="flex flex-col items-stretch justify-between gap-4 rounded-2xl border border-green-700/20 bg-green-50 p-4 shadow-sm sm:flex-row sm:items-center sm:p-5">
         <div className="flex items-center gap-3">
           <div className="grid h-10 w-10 place-items-center rounded-xl bg-green-700 text-cream-50 shadow-sm">
             <Sparkles size={20} />
@@ -321,7 +321,7 @@ export default function StudentDashboard() {
             </p>
           </div>
         </div>
-        <Button href="/assistant" variant="primary" size="sm">
+        <Button href="/assistant" variant="primary" size="sm" className="w-full justify-center sm:w-auto">
           Chat with Aarsh
         </Button>
       </div>

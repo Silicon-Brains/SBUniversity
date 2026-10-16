@@ -15,10 +15,11 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   return (
     <Ctx.Provider value={push}>
       {children}
-      <div aria-live="polite" className="fixed inset-x-3 top-3 z-50 flex flex-col items-end gap-2 sm:left-auto sm:w-80">
+      <div aria-live="polite" className="fixed inset-x-3 top-[calc(env(safe-area-inset-top)+0.75rem)] z-50 flex flex-col items-end gap-2 sm:left-auto sm:w-80">
         {msgs.map((m) => (
-          <div key={m.id} className="flex w-full items-center gap-2 rounded-lg border border-success bg-white px-4 py-3 text-sm shadow-md">
-            <CheckCircle2 size={18} className="shrink-0 text-success" aria-hidden />{m.text}
+          <div key={m.id} className="flex w-full min-w-0 items-center gap-2 rounded-lg border border-success bg-white px-4 py-3 text-sm shadow-md">
+            <CheckCircle2 size={18} className="shrink-0 text-success" aria-hidden />
+            <span className="min-w-0 break-words">{m.text}</span>
           </div>
         ))}
       </div>

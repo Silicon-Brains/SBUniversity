@@ -24,7 +24,7 @@ import { PageHeader, Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { useToast } from "@/components/ui/Toast";
-import { api, getDevAuthToken } from "@/lib/api";
+import { api, getBaseUrl, getDevAuthToken } from "@/lib/api";
 
 interface StudentCardData {
   name: string;
@@ -109,7 +109,20 @@ export default function StudentProfilePage() {
       const department = idCardRes?.department || meRes?.student_profile?.department?.name || "Computer Science & Engineering";
       const batchYear = idCardRes?.batch_year || meRes?.student_profile?.batch_year || 2026;
       const phone = idCardRes?.phone || meRes?.student_profile?.phone || "+91 98765 43210";
-      const photoUrl = idCardRes?.photo_url || meRes?.avatar_url || user?.imageUrl || null;
+      const storedPhoto = idCardRes?.photo_url || meRes?.avatar_url || null;
+      let photoUrl = storedPhoto || user?.imageUrl || null;
+      if (storedPhoto && !/^https?:\/\//i.test(storedPhoto) && token) {
+        const photoResponse = await fetch(`${getBaseUrl()}/me/photo`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (photoResponse.ok) {
+          photoUrl = URL.createObjectURL(await photoResponse.blob());
+        } else if (photoResponse.status !== 404) {
+          throw new Error(`Could not load student avatar (${photoResponse.status}).`);
+        } else {
+          photoUrl = user?.imageUrl || null;
+        }
+      }
       const email = meRes?.email || user?.primaryEmailAddress?.emailAddress || "student@sbuniversity.edu";
       const status = idCardRes?.status || meRes?.status || "active";
 
@@ -140,6 +153,14 @@ export default function StudentProfilePage() {
   useEffect(() => {
     loadProfile();
   }, [loadProfile]);
+
+  useEffect(() => {
+    return () => {
+      if (cardData.photo_url?.startsWith("blob:")) {
+        URL.revokeObjectURL(cardData.photo_url);
+      }
+    };
+  }, [cardData.photo_url]);
 
   // Save updated ID Card data to database
   const handleSaveEdit = async (e: React.FormEvent) => {
@@ -188,7 +209,7 @@ export default function StudentProfilePage() {
         title="Student Virtual ID Card"
         subtitle="Your official university credential with tamper-evident digital verification."
         action={
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <Button
               variant="secondary"
               size="sm"
@@ -218,10 +239,10 @@ export default function StudentProfilePage() {
           <div className="flex justify-center lg:col-span-5">
             <div
               id="student-id-card"
-              className="relative flex h-[540px] w-[340px] flex-col overflow-hidden rounded-2xl bg-cream-200 shadow-2xl border border-cream-300 select-none transition-transform duration-300 hover:scale-[1.01]"
+              className="relative flex aspect-[17/27] w-full max-w-[340px] flex-col overflow-hidden rounded-2xl border border-cream-300 bg-cream-200 shadow-2xl select-none transition-transform duration-300 sm:hover:scale-[1.01]"
             >
               {/* Top 40%: Green-700 to Green-900 gradient banner */}
-              <div className="relative flex h-[190px] flex-col items-center justify-between bg-gradient-to-b from-green-700 to-green-900 p-5 text-center text-cream-50">
+              <div className="relative flex h-[35%] shrink-0 flex-col items-center justify-between bg-gradient-to-b from-green-700 to-green-900 p-3 text-center text-cream-50 sm:p-5">
                 <div className="absolute inset-0 opacity-10 bg-[radial-gradient(#F5DABF_1px,transparent_1px)] [background-size:12px_12px]" />
 
                 <div className="flex items-center gap-2">
@@ -238,16 +259,16 @@ export default function StudentProfilePage() {
                 </p>
 
                 {/* Circular Student Avatar */}
-                <div className="relative -mb-12">
+                <div className="relative -mb-10">
                   {cardData.photo_url ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
                       src={cardData.photo_url}
                       alt={cardData.name}
-                      className="h-24 w-24 rounded-full object-cover ring-4 ring-cream-200 shadow-lg bg-cream-100"
+                      className="h-20 w-20 rounded-full bg-cream-100 object-cover ring-4 ring-cream-200 shadow-lg sm:h-24 sm:w-24"
                     />
                   ) : (
-                    <div className="grid h-24 w-24 place-items-center rounded-full bg-cream-100 font-heading text-2xl font-bold text-green-900 ring-4 ring-cream-200 shadow-md">
+                    <div className="grid h-20 w-20 place-items-center rounded-full bg-cream-100 font-heading text-2xl font-bold text-green-900 ring-4 ring-cream-200 shadow-md sm:h-24 sm:w-24">
                       {cardData.name.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase()}
                     </div>
                   )}
@@ -255,26 +276,26 @@ export default function StudentProfilePage() {
               </div>
 
               {/* Middle body */}
-              <div className="flex flex-1 flex-col items-center px-6 pt-14 pb-4 text-center">
-                <h2 className="font-heading text-xl font-bold text-green-900 truncate max-w-[280px]">
+              <div className="flex min-h-0 flex-1 flex-col items-center px-4 pt-12 pb-3 text-center sm:px-6 sm:pt-14 sm:pb-4">
+                <h2 className="max-w-full break-words font-heading text-lg font-bold leading-tight text-green-900 sm:text-xl">
                   {cardData.name}
                 </h2>
                 <p className="mt-0.5 font-mono text-xs font-semibold text-green-700">
                   {cardData.student_code}
                 </p>
 
-                <div className="mt-4 w-full space-y-1.5 rounded-xl bg-white/80 p-3 text-left text-xs shadow-sm backdrop-blur-sm border border-cream-200/50">
-                  <div className="flex justify-between">
+                <div className="mt-3 w-full space-y-1.5 rounded-xl border border-cream-200/50 bg-white/80 p-2.5 text-left text-[11px] shadow-sm backdrop-blur-sm sm:mt-4 sm:p-3 sm:text-xs">
+                  <div className="flex justify-between gap-2">
                     <span className="text-ink-muted">Department:</span>
-                    <span className="font-medium text-ink truncate max-w-[170px]">
+                    <span className="min-w-0 max-w-[170px] truncate text-right font-medium text-ink">
                       {cardData.department || "Computer Science & Engineering"}
                     </span>
                   </div>
-                  <div className="flex justify-between">
+                  <div className="flex justify-between gap-2">
                     <span className="text-ink-muted">Batch:</span>
                     <span className="font-medium text-ink">{batchString}</span>
                   </div>
-                  <div className="flex justify-between">
+                  <div className="flex justify-between gap-2">
                     <span className="text-ink-muted">Valid Until:</span>
                     <span className="font-medium text-ink">{cardData.valid_until}</span>
                   </div>
@@ -282,9 +303,9 @@ export default function StudentProfilePage() {
 
                 {/* QR Verification Tile */}
                 <div className="mt-4 flex flex-col items-center">
-                  <div className="rounded-xl border border-cream-300 bg-white p-2.5 shadow-sm">
-                    <div className="flex flex-col items-center justify-center h-20 w-20 bg-green-50 rounded-lg">
-                      <QrCode size={52} className="text-green-700" />
+                  <div className="rounded-xl border border-cream-300 bg-white p-2 shadow-sm">
+                    <div className="flex h-16 w-16 flex-col items-center justify-center rounded-lg bg-green-50 sm:h-20 sm:w-20">
+                      <QrCode size={44} className="text-green-700 sm:h-[52px] sm:w-[52px]" />
                     </div>
                   </div>
                   <Link
@@ -298,7 +319,7 @@ export default function StudentProfilePage() {
               </div>
 
               {/* Bottom Bordo Accent Stripe */}
-              <div className="h-4 w-full bg-bordo-700 flex items-center justify-between px-3 text-[9px] font-semibold text-cream-50 uppercase tracking-wider">
+              <div className="flex h-4 w-full items-center justify-between gap-2 bg-bordo-700 px-3 text-[8px] font-semibold uppercase tracking-wider text-cream-50 sm:text-[9px]">
                 <span>SBU VERIFIED</span>
                 <span>ACADEMIC YEAR 2026</span>
               </div>
@@ -308,7 +329,7 @@ export default function StudentProfilePage() {
           {/* Profile Details & Contact Configuration */}
           <div className="space-y-6 lg:col-span-7">
             <Card>
-              <div className="flex items-center justify-between border-b border-cream-300 pb-4">
+              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-cream-300 pb-4">
                 <div>
                   <h3 className="text-lg font-bold">Credential Registry Details</h3>
                   <p className="text-xs text-ink-muted">Official records from the University Database</p>
@@ -323,7 +344,7 @@ export default function StudentProfilePage() {
                   <span className="flex items-center gap-2 text-xs font-medium text-ink-muted">
                     <Building size={14} className="text-green-700" /> Department
                   </span>
-                  <p className="mt-1 font-semibold text-green-900">{cardData.department}</p>
+                  <p className="mt-1 break-words font-semibold text-green-900">{cardData.department}</p>
                 </div>
 
                 <div className="rounded-lg bg-cream-50 p-3.5">
@@ -353,7 +374,7 @@ export default function StudentProfilePage() {
 
             {/* Contact Information & Quick Edit Card */}
             <Card>
-              <div className="flex items-center justify-between border-b border-cream-300 pb-4">
+              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-cream-300 pb-4">
                 <div>
                   <h3 className="text-lg font-bold">Contact Information</h3>
                   <p className="text-xs text-ink-muted">Synchronized across virtual ID and administrative alerts</p>
@@ -368,7 +389,7 @@ export default function StudentProfilePage() {
               </div>
 
               <div className="mt-5 space-y-4">
-                <div className="flex items-center justify-between rounded-lg bg-cream-50 p-3.5">
+                <div className="flex items-center justify-between gap-3 rounded-lg bg-cream-50 p-3.5">
                   <div className="flex items-center gap-3">
                     <span className="grid h-8 w-8 place-items-center rounded-lg bg-white text-green-700 shadow-sm">
                       <Phone size={15} />
@@ -380,7 +401,7 @@ export default function StudentProfilePage() {
                   </div>
                 </div>
 
-                <div className="flex items-center justify-between rounded-lg bg-cream-50 p-3.5">
+                <div className="flex items-center justify-between gap-3 rounded-lg bg-cream-50 p-3.5">
                   <div className="flex items-center gap-3">
                     <span className="grid h-8 w-8 place-items-center rounded-lg bg-white text-green-700 shadow-sm">
                       <Phone size={15} />
@@ -399,13 +420,13 @@ export default function StudentProfilePage() {
 
       {/* Edit ID Card Modal */}
       {isEditModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto p-3 sm:p-4">
           <div
             className="absolute inset-0 bg-green-900/50 backdrop-blur-sm"
             onClick={() => setIsEditModalOpen(false)}
           />
-          <div className="relative w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl border border-cream-300">
-            <div className="flex items-center justify-between border-b border-cream-200 pb-3">
+          <div className="relative my-auto max-h-[calc(100dvh-1.5rem)] w-full max-w-lg overflow-y-auto rounded-2xl border border-cream-300 bg-white p-4 shadow-2xl sm:max-h-[calc(100dvh-2rem)] sm:p-6">
+            <div className="flex items-center justify-between gap-3 border-b border-cream-200 pb-3">
               <div className="flex items-center gap-2">
                 <Edit3 className="text-green-700" size={18} />
                 <h3 className="font-heading text-lg font-bold text-green-900">
@@ -478,15 +499,15 @@ export default function StudentProfilePage() {
                 </p>
               </div>
 
-              <div className="flex items-center justify-end gap-3 pt-3 border-t border-cream-200">
+              <div className="flex flex-col-reverse items-stretch justify-end gap-2 border-t border-cream-200 pt-3 sm:flex-row sm:items-center sm:gap-3">
                 <button
                   type="button"
                   onClick={() => setIsEditModalOpen(false)}
-                  className="h-9 rounded-lg border border-cream-300 px-4 text-xs font-semibold text-ink-muted hover:bg-cream-100"
+                  className="min-h-11 rounded-lg border border-cream-300 px-4 text-xs font-semibold text-ink-muted hover:bg-cream-100 sm:min-h-9"
                 >
                   Cancel
                 </button>
-                <Button type="submit" variant="primary" size="sm" disabled={saving}>
+                <Button type="submit" variant="primary" size="sm" disabled={saving} className="w-full justify-center sm:w-auto">
                   {saving ? (
                     <>
                       <Loader2 size={14} className="animate-spin mr-1.5" /> Saving...

@@ -16,6 +16,8 @@ from app.schemas.task import (
     TaskCreate,
     TaskResponse,
     TaskReviewRequest,
+    TaskVideoProgressRequest,
+    TaskVideoProgressResponse,
     TaskUpdate,
 )
 from app.services.task_service import TaskService
@@ -35,20 +37,24 @@ async def list_tasks(
     if current_user.role == UserRole.STUDENT:
         enrollments = await course_repo.list_student_enrollments(current_user.id)
         enrolled_ids = [e.course_id for e in enrollments if e.status == EnrollmentStatus.ACTIVE]
-        if not enrolled_ids:
-            return []
-
-        tasks, _ = await repo.list_tasks(status=TaskStatus.ACTIVE)
-        filtered_tasks = [t for t in tasks if t.course_id in enrolled_ids and (not course_id or t.course_id == course_id)]
+        filtered_tasks = await repo.list_student_tasks(
+            current_user.id, enrolled_ids, course_id
+        )
 
         # Attach student's completion status
         completions = await repo.list_student_completions(current_user.id)
         comp_map = {c.task_id: c for c in completions}
+        progress_rows = await repo.list_student_video_progress(
+            current_user.id, [task.id for task in filtered_tasks]
+        )
+        progress_map = {progress.task_id: progress.progress_percent for progress in progress_rows}
 
         result = []
         for t in filtered_tasks:
             t_resp = TaskResponse.model_validate(t)
             t_resp.course_title = t.course.title if t.course else "Course"
+            if t.id in progress_map:
+                t_resp.my_video_progress = progress_map[t.id]
             comp = comp_map.get(t.id)
             if comp:
                 t_resp.my_completion_id = comp.id
@@ -61,11 +67,13 @@ async def list_tasks(
         return result
 
     elif current_user.role == UserRole.TEACHER:
-        # Teacher's own courses
+        # Show tasks created by this teacher, including cross-course assignments.
         courses_stmt = select(Course.id).where(Course.teacher_id == current_user.id)
         teacher_c_ids = (await db.execute(courses_stmt)).scalars().all()
         tasks, _ = await repo.list_tasks(course_id=course_id)
-        filtered_tasks = [t for t in tasks if t.course_id in teacher_c_ids]
+        filtered_tasks = [
+            t for t in tasks if t.course_id in teacher_c_ids or t.created_by == current_user.id
+        ]
         res = []
         for t in filtered_tasks:
             t_resp = TaskResponse.model_validate(t)
@@ -94,8 +102,13 @@ async def list_pending_reviews(
     if current_user.role == UserRole.TEACHER:
         courses_stmt = select(Course.id).where(Course.teacher_id == current_user.id)
         course_ids = list((await db.execute(courses_stmt)).scalars().all())
+        completions = await repo.list_pending_reviews(
+            course_ids=course_ids,
+            created_by=current_user.id,
+        )
+    else:
+        completions = await repo.list_pending_reviews()
 
-    completions = await repo.list_pending_reviews(course_ids=course_ids)
     res = []
     for c in completions:
         cr = TaskCompletionResponse.model_validate(c)
@@ -103,6 +116,7 @@ async def list_pending_reviews(
         cr.task_title = c.task.title if c.task else "Task"
         cr.course_title = c.task.course.title if c.task and c.task.course else "Course"
         cr.course_id = c.task.course_id if c.task else None
+        cr.points_available = c.task.points if c.task else c.points_awarded
         res.append(cr)
     return res
 
@@ -117,6 +131,11 @@ async def get_task_detail(
     task = await repo.get_by_id(task_id)
     if not task:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Task not found")
+
+    if current_user.role == UserRole.STUDENT:
+        service = TaskService(db)
+        if not await service.student_can_access_task(task, current_user.id):
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Task not found")
 
     t_resp = TaskResponse.model_validate(task)
     t_resp.course_title = task.course.title if task.course else "Course"
@@ -184,7 +203,26 @@ async def submit_assignment_task(
         "completion_id": str(completion.id),
         "status": completion.status.value,
         "submitted_at": completion.submitted_at.isoformat(),
+        "points_awarded": completion.points_awarded,
+        "completed_at": completion.completed_at.isoformat() if completion.completed_at else None,
     }
+
+
+@router.post("/{task_id}/video-progress", response_model=TaskVideoProgressResponse)
+async def update_task_video_progress(
+    task_id: uuid.UUID,
+    body: TaskVideoProgressRequest,
+    current_user: User = Depends(require_role(UserRole.STUDENT)),
+    db: AsyncSession = Depends(get_db),
+):
+    service = TaskService(db)
+    progress = await service.update_video_progress(
+        task_id,
+        current_user.id,
+        body.progress_percent,
+        body.video_duration_seconds,
+    )
+    return {"progress_percent": progress}
 
 
 @router.post("/completions/{completion_id}/approve")
