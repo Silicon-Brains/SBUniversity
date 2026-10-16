@@ -138,7 +138,18 @@ async def generic_exception_handler(request: Request, exc: Exception):
     )
 
 
-# Health Checks
+# Health Checks & Root
+@app.get("/")
+@app.head("/")
+async def root():
+    return {
+        "message": f"{settings.APP_NAME} is running",
+        "status": "online",
+        "docs": "/docs" if settings.DEBUG else None,
+        "health": "/health",
+    }
+
+
 @app.get("/health")
 @app.get(f"{settings.API_V1_PREFIX}/health")
 async def health_check():
