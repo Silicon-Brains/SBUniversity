@@ -8,6 +8,6 @@
 # server folders
 
 
-# /server/.venv
+/server/.venv
 /server/.env
 /server/.pytest_cache

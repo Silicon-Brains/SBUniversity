@@ -180,3 +180,4 @@ async def health_check():
 
 # Mount API Routers
 app.include_router(api_v1_router, prefix=settings.API_V1_PREFIX)
+app.include_router(api_v1_router)
