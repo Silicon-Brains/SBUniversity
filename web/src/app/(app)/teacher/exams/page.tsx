@@ -88,7 +88,7 @@ export default function TeacherExamsPage() {
   const draftCount = exams.filter((exam) => exam.status === "draft").length;
 
   return (
-    <div className="space-y-6">
+    <div className="min-w-0 space-y-6">
       <PageHeader
         title="Manage Course Examinations"
         subtitle="Create, configure, and monitor timed MCQ exams with automated Task Points."
@@ -129,11 +129,11 @@ export default function TeacherExamsPage() {
             const window = `${start.toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })} – ${end.toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}`;
 
             return (
-              <Card key={exam.id} className="p-5 transition-all hover:shadow-md sm:p-6">
+              <Card key={exam.id} className="min-w-0 p-4 transition-all hover:shadow-md sm:p-6">
                 <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-start">
-                  <div className="space-y-1.5">
+                  <div className="min-w-0 space-y-1.5">
                     <div className="flex flex-wrap items-center gap-2">
-                      <h3 className="font-heading text-lg font-bold text-green-900">{exam.title}</h3>
+                      <h3 className="break-words font-heading text-lg font-bold text-green-900">{exam.title}</h3>
                       {exam.status === "published" && (
                         <Badge tone="success"><CheckCircle2 size={12} className="mr-1" /> Published</Badge>
                       )}
@@ -142,7 +142,7 @@ export default function TeacherExamsPage() {
                       <PointsChip points={exam.task_points ?? 0} />
                     </div>
 
-                    <p className="text-xs text-ink-muted">
+                    <p className="break-words text-xs text-ink-muted">
                       Course: <b className="text-ink">{exam.course_title || "Course"}</b> · Scheduled: {window}
                     </p>
 
@@ -158,11 +158,12 @@ export default function TeacherExamsPage() {
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-2 pt-2 sm:pt-0">
+                  <div className="flex flex-wrap items-center gap-2 pt-2 sm:pt-0">
                     {exam.status === "draft" && (
                       <Button
                         variant="primary"
                         size="sm"
+                        className="min-h-11"
                         disabled={processingId === exam.id}
                         onClick={() => void changeExamStatus(exam, "publish")}
                       >
@@ -173,6 +174,7 @@ export default function TeacherExamsPage() {
                       <Button
                         variant="secondary"
                         size="sm"
+                        className="min-h-11"
                         disabled={processingId === exam.id}
                         onClick={() => void changeExamStatus(exam, "close")}
                       >

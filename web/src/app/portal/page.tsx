@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { getSession, ROLE_HOME, DEMO } from "@/lib/auth";
+import { getBaseUrl } from "@/lib/api";
 
 /**
  * Smart portal entry — syncs user to backend database,
@@ -19,7 +20,7 @@ export default async function PortalPage() {
       const { getToken } = await auth();
       const token = await getToken();
       if (token) {
-        const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000/api/v1";
+        const baseUrl = getBaseUrl();
         await fetch(`${baseUrl}/me`, {
           headers: { Authorization: `Bearer ${token}` },
           cache: "no-store",

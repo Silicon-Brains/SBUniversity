@@ -93,12 +93,12 @@ export function AarshFloatingWidget({ userRole, userName }: { userRole: string; 
   };
 
   return (
-    <div className="fixed bottom-5 right-5 z-50">
+    <div className="fixed bottom-3 right-3 z-50 sm:bottom-5 sm:right-5">
       {/* Floating Launcher Button */}
       {!isOpen && (
         <button
           onClick={() => setIsOpen(true)}
-          className="group flex h-14 items-center gap-2.5 rounded-full bg-green-700 px-5 text-cream-50 shadow-xl transition-all duration-200 hover:bg-green-600 hover:scale-105 active:scale-95"
+          className="group flex min-h-14 items-center gap-2.5 rounded-full bg-green-700 px-4 text-cream-50 shadow-xl transition-all duration-200 hover:bg-green-600 hover:scale-105 active:scale-95 sm:px-5"
           aria-label="Open Aarsh Intelligence Assistant"
         >
           <div className="relative">
@@ -111,14 +111,14 @@ export function AarshFloatingWidget({ userRole, userName }: { userRole: string; 
 
       {/* Floating Chat Drawer */}
       {isOpen && (
-        <div className="flex h-[520px] w-[370px] flex-col overflow-hidden rounded-2xl border border-cream-300 bg-white shadow-2xl transition-all sm:w-[410px]">
+        <div className="flex h-[min(520px,calc(100dvh-1.5rem))] min-h-[min(400px,calc(100dvh-1.5rem))] w-[calc(100vw-1.5rem)] max-w-[410px] flex-col overflow-hidden rounded-2xl border border-cream-300 bg-white shadow-2xl transition-all">
           {/* Header */}
           <div className="flex items-center justify-between border-b border-green-900/20 bg-green-700 px-4 py-3 text-cream-50">
-            <div className="flex items-center gap-2.5">
+            <div className="flex min-w-0 items-center gap-2.5">
               <span className="grid h-8 w-8 place-items-center rounded-lg bg-cream-200 text-green-900">
                 <Sparkles size={16} className="text-bordo-700" />
               </span>
-              <div>
+              <div className="min-w-0">
                 <p className="font-heading text-sm font-bold leading-tight">Aarsh Intelligence</p>
                 <p className="text-[11px] text-cream-200">Gemini Academic Assistant</p>
               </div>
@@ -127,14 +127,14 @@ export function AarshFloatingWidget({ userRole, userName }: { userRole: string; 
             <div className="flex items-center gap-1">
               <Link
                 href="/assistant"
-                className="rounded-lg p-1.5 text-cream-200 hover:bg-green-600 hover:text-cream-50"
+                className="grid h-11 w-11 place-items-center rounded-lg text-cream-200 hover:bg-green-600 hover:text-cream-50"
                 title="Open full page assistant"
               >
                 <Maximize2 size={16} />
               </Link>
               <button
                 onClick={() => setIsOpen(false)}
-                className="rounded-lg p-1.5 text-cream-200 hover:bg-green-600 hover:text-cream-50"
+                className="grid h-11 w-11 place-items-center rounded-lg text-cream-200 hover:bg-green-600 hover:text-cream-50"
                 aria-label="Close assistant"
               >
                 <X size={18} />
@@ -143,13 +143,13 @@ export function AarshFloatingWidget({ userRole, userName }: { userRole: string; 
           </div>
 
           {/* Anti-cheat Guardrail Banner */}
-          <div className="flex items-center gap-1.5 bg-green-50 px-3 py-1.5 text-[11px] font-medium text-green-900 border-b border-cream-200">
+          <div className="flex items-center gap-1.5 bg-green-50 px-3 py-2 text-[11px] font-medium text-green-900 border-b border-cream-200">
             <ShieldAlert size={13} className="text-bordo-700 shrink-0" />
             <span>Academic integrity guardrails active</span>
           </div>
 
           {/* Messages Container */}
-          <div className="flex-1 space-y-3 overflow-y-auto bg-cream-50/60 p-4 text-xs">
+          <div className="min-h-0 flex-1 space-y-3 overflow-y-auto bg-cream-50/60 p-3 text-xs sm:p-4">
             {messages.map((m) => (
               <div
                 key={m.id}

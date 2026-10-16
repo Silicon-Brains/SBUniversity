@@ -88,26 +88,28 @@ export default function Landing() {
     <div className="min-h-screen bg-cream-50 text-ink">
       {/* Top Header */}
       <header className="sticky top-0 z-30 border-b border-cream-300 bg-cream-50/90 backdrop-blur">
-        <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 sm:px-6">
-          <Link href="/" className="flex items-center gap-2.5 font-heading text-lg font-bold text-green-700">
+        <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-2 px-3 sm:gap-4 sm:px-6">
+          <Link href="/" className="flex min-w-0 items-center gap-2 font-heading text-base font-bold text-green-700 sm:gap-2.5 sm:text-lg">
             <span className="grid h-9 w-9 place-items-center rounded-lg bg-green-700 text-cream-200 shadow-sm">
               <GraduationCap size={20} aria-hidden />
             </span>
             <span>SBUniversity</span>
           </Link>
 
-          <div className="flex items-center gap-2.5">
+          <div className="flex shrink-0 items-center gap-1 sm:gap-2.5">
             <Link
               href="/verify"
               className="hidden text-xs font-semibold text-green-700 hover:text-green-900 sm:inline-flex items-center gap-1"
             >
               <ShieldCheck size={14} /> Verify Credential
             </Link>
-            <Button href="/sign-in" variant="secondary" size="sm">
-              Sign In
+            <Button href="/sign-in" variant="secondary" size="sm" className="px-2 text-xs sm:px-3 sm:text-sm">
+              <span className="sm:hidden">Sign in</span>
+              <span className="hidden sm:inline">Sign In</span>
             </Button>
-            <Button href="/sign-up" variant="primary" size="sm">
-              Sign Up
+            <Button href="/sign-up" variant="primary" size="sm" className="px-2 text-xs sm:px-3 sm:text-sm">
+              <span className="sm:hidden">Sign up</span>
+              <span className="hidden sm:inline">Sign Up</span>
             </Button>
           </div>
         </div>
@@ -115,7 +117,7 @@ export default function Landing() {
 
       <main>
         {/* Hero Section */}
-        <section className="relative overflow-hidden bg-gradient-to-b from-cream-100 to-cream-50 pb-16 pt-12 lg:pt-20 lg:pb-24">
+        <section className="relative overflow-hidden bg-gradient-to-b from-cream-100 to-cream-50 pb-12 pt-10 sm:pb-16 sm:pt-12 lg:pt-20 lg:pb-24">
           <div className="mx-auto grid max-w-6xl items-center gap-12 px-4 sm:px-6 lg:grid-cols-12">
             <div className="lg:col-span-7 space-y-6">
               <div className="inline-flex items-center gap-2 rounded-full border border-cream-300 bg-white px-3.5 py-1 text-xs font-semibold text-green-900 shadow-sm">
@@ -123,39 +125,39 @@ export default function Landing() {
                 <span>Next-Generation Academic Platform · v2026</span>
               </div>
 
-              <h1 className="font-heading text-4xl font-bold leading-tight text-green-900 sm:text-5xl lg:text-5xl">
+              <h1 className="font-heading text-3xl font-bold leading-tight text-green-900 min-[400px]:text-4xl sm:text-5xl lg:text-5xl">
                 Learn, test, and achieve verified academic distinction.
               </h1>
 
-              <p className="max-w-xl text-lg text-ink-muted leading-relaxed">
+              <p className="max-w-xl text-base leading-relaxed text-ink-muted sm:text-lg">
                 SBUniversity unifies rigorous timed examinations, automated Task Point rankings, official verifiable credentials, and Gemini-powered AI tutoring into one cohesive learning portal.
               </p>
 
-              <div className="flex flex-wrap items-center gap-3.5 pt-2">
-                <Button href="/sign-up" variant="primary" size="lg">
+              <div className="flex flex-col items-stretch gap-2.5 pt-2 min-[400px]:flex-row min-[400px]:flex-wrap min-[400px]:items-center sm:gap-3.5">
+                <Button href="/sign-up" variant="primary" size="lg" className="w-full min-[400px]:w-auto">
                   Create Account (Sign Up)
                 </Button>
-                <Button href="/sign-in" variant="secondary" size="lg">
+                <Button href="/sign-in" variant="secondary" size="lg" className="w-full min-[400px]:w-auto">
                   Portal Sign In
                 </Button>
-                <Button href="#verify-section" variant="ghost" size="lg">
+                <Button href="#verify-section" variant="ghost" size="lg" className="w-full min-[400px]:w-auto">
                   Verify a Certificate
                 </Button>
               </div>
 
               {/* Public Live Statistics Counter */}
-              <div className="grid grid-cols-3 gap-4 border-t border-cream-300 pt-6">
+              <div className="grid grid-cols-3 gap-2 border-t border-cream-300 pt-5 min-[400px]:gap-4 sm:pt-6">
                 <div>
-                  <p className="font-heading text-2xl font-bold text-green-700 sm:text-3xl">4,800+</p>
-                  <p className="text-xs text-ink-muted">Enrolled Students</p>
+                  <p className="font-heading text-xl font-bold text-green-700 min-[400px]:text-2xl sm:text-3xl">4,800+</p>
+                  <p className="text-[11px] text-ink-muted min-[400px]:text-xs">Enrolled Students</p>
                 </div>
                 <div>
-                  <p className="font-heading text-2xl font-bold text-green-700 sm:text-3xl">98.4%</p>
-                  <p className="text-xs text-ink-muted">Exam Completion</p>
+                  <p className="font-heading text-xl font-bold text-green-700 min-[400px]:text-2xl sm:text-3xl">98.4%</p>
+                  <p className="text-[11px] text-ink-muted min-[400px]:text-xs">Exam Completion</p>
                 </div>
                 <div>
-                  <p className="font-heading text-2xl font-bold text-green-700 sm:text-3xl">100%</p>
-                  <p className="text-xs text-ink-muted">Verifiable PDFs</p>
+                  <p className="font-heading text-xl font-bold text-green-700 min-[400px]:text-2xl sm:text-3xl">100%</p>
+                  <p className="text-[11px] text-ink-muted min-[400px]:text-xs">Verifiable PDFs</p>
                 </div>
               </div>
             </div>
@@ -210,12 +212,12 @@ export default function Landing() {
         </section>
 
         {/* Public Credential Verification Section (PRD §7.2 requirement) */}
-        <section id="verify-section" className="border-y border-cream-300 bg-cream-200 py-16">
+        <section id="verify-section" className="border-y border-cream-300 bg-cream-200 py-12 sm:py-16">
           <div className="mx-auto max-w-4xl px-4 text-center sm:px-6">
             <span className="inline-flex items-center gap-1.5 rounded-full bg-white px-3 py-1 text-xs font-semibold text-green-900 shadow-sm mb-3">
               <ShieldCheck size={14} className="text-green-700" /> Tamper-Evident Verification
             </span>
-            <h2 className="font-heading text-3xl font-bold text-green-900">
+            <h2 className="font-heading text-2xl font-bold text-green-900 sm:text-3xl">
               Verify Any University Credential
             </h2>
             <p className="mx-auto mt-2 max-w-xl text-sm text-ink-muted">
@@ -244,7 +246,7 @@ export default function Landing() {
         </section>
 
         {/* Features Grid */}
-        <section className="mx-auto max-w-6xl px-4 py-20 sm:px-6">
+        <section className="mx-auto max-w-6xl px-4 py-12 sm:px-6 sm:py-20">
           <div className="text-center">
             <h2 className="font-heading text-3xl font-bold text-green-900 sm:text-4xl">
               Engineered for Modern Academic Excellence
@@ -254,7 +256,7 @@ export default function Landing() {
             </p>
           </div>
 
-          <div className="mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="mt-8 grid gap-4 sm:mt-12 sm:grid-cols-2 sm:gap-6 lg:grid-cols-3">
             {features.map(({ icon: Icon, title, text }) => (
               <Card key={title} className="flex flex-col p-6 transition-all duration-200 hover:shadow-md hover:-translate-y-0.5">
                 <span className="grid h-12 w-12 place-items-center rounded-xl bg-green-50 text-green-700 shadow-sm">
@@ -268,7 +270,7 @@ export default function Landing() {
         </section>
 
         {/* How It Works Section */}
-        <section id="how" className="bg-green-700 text-cream-50 py-20">
+        <section id="how" className="bg-green-700 py-12 text-cream-50 sm:py-20">
           <div className="mx-auto max-w-6xl px-4 sm:px-6">
             <div className="text-center">
               <span className="text-xs uppercase font-bold tracking-widest text-cream-300">
@@ -279,7 +281,7 @@ export default function Landing() {
               </h2>
             </div>
 
-            <div className="mt-12 grid gap-6 md:grid-cols-3">
+            <div className="mt-8 grid gap-4 md:mt-12 md:grid-cols-3 md:gap-6">
               {steps.map((s) => (
                 <div key={s.step} className="rounded-2xl bg-green-600/90 p-6 border border-green-500/40 shadow-lg">
                   <span className="font-heading text-3xl font-bold text-cream-200">{s.step}</span>
@@ -312,13 +314,13 @@ export default function Landing() {
       {/* Footer */}
       <footer className="border-t border-cream-300 bg-white py-10 text-xs text-ink-muted">
         <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 px-4 sm:flex-row sm:px-6">
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center justify-center gap-2 text-center sm:justify-start">
             <span className="grid h-6 w-6 place-items-center rounded bg-green-700 text-cream-200 text-xs font-bold">
               SBU
             </span>
             <span className="font-semibold text-green-900">SBUniversity Academic Platform</span>
           </div>
-          <div className="flex flex-wrap gap-6">
+          <div className="flex flex-wrap justify-center gap-x-5 gap-y-3 sm:justify-end">
             <Link href="/verify" className="hover:underline">Verify Credential</Link>
             <Link href="/ranking" className="hover:underline">Live Leaderboard</Link>
             <Link href="/notices" className="hover:underline">University Notices</Link>

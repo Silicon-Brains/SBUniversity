@@ -5,6 +5,7 @@ import {
   Award,
   BarChart3,
   BookOpen,
+  BookMarked,
   Bot,
   CheckSquare,
   ClipboardCheck,
@@ -25,7 +26,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { demoSignOut } from "@/lib/actions";
 import { ToastProvider } from "@/components/ui/Toast";
 import { AarshFloatingWidget } from "@/components/features/AarshFloatingWidget";
@@ -67,6 +68,7 @@ const NAV: Record<Role, NavItem[]> = {
   ],
   admin: [
     { href: "/admin/users", label: "User Control", icon: Users },
+    { href: "/admin/courses", label: "Course Control", icon: BookMarked },
     { href: "/admin/progress", label: "Progress Check", icon: BookOpen },
     { href: "/admin/analytics", label: "Live Analytics", icon: BarChart3 },
     { href: "/admin/notices", label: "Notice Control", icon: Megaphone },
@@ -78,13 +80,32 @@ const NAV: Record<Role, NavItem[]> = {
 export function Shell({ role, name, demo, children }: { role: Role; name: string; demo: boolean; children: ReactNode }) {
   const [open, setOpen] = useState(false);
   const path = usePathname();
+  const menuButtonRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     setOpen(false);
   }, [path]);
 
+  useEffect(() => {
+    if (!open) return;
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setOpen(false);
+        menuButtonRef.current?.focus();
+      }
+    };
+    document.addEventListener("keydown", closeOnEscape);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      document.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [open]);
+
   const nav = (
-    <nav aria-label="Main Navigation" className="flex flex-col gap-1.5 px-3 py-4">
+    <nav id="portal-navigation" aria-label="Main Navigation" className="flex flex-col gap-1.5 px-3 py-4">
       {NAV[role].map(({ href, label, icon: Icon, badge }) => {
         const active = path === href || path.startsWith(href + "/");
         return (
@@ -133,9 +154,10 @@ export function Shell({ role, name, demo, children }: { role: Role; name: string
         {/* Deep Green Heritage Sidebar (30% secondary brand structure) */}
         <aside
           className={clsx(
-            "fixed inset-y-0 left-0 z-40 flex w-64 flex-col bg-green-700 text-cream-100 shadow-lg transition-transform duration-200 lg:translate-x-0",
+            "fixed inset-y-0 left-0 z-40 flex w-[min(18rem,calc(100vw-2.5rem))] flex-col bg-green-700 pb-[env(safe-area-inset-bottom)] text-cream-100 shadow-lg transition-transform duration-200 lg:w-64 lg:translate-x-0",
             open ? "translate-x-0" : "-translate-x-full"
           )}
+          aria-label="Main menu"
         >
           {/* Logo & Crest */}
           <div className="flex h-16 items-center justify-between border-b border-green-900/40 px-5">
@@ -153,6 +175,7 @@ export function Shell({ role, name, demo, children }: { role: Role; name: string
               </div>
             </Link>
             <button
+              type="button"
               onClick={() => setOpen(false)}
               className="rounded-lg p-1 text-cream-200 hover:bg-green-600 lg:hidden"
               aria-label="Close menu"
@@ -183,6 +206,7 @@ export function Shell({ role, name, demo, children }: { role: Role; name: string
         {/* Mobile backdrop */}
         {open && (
           <button
+            type="button"
             aria-label="Close menu"
             className="fixed inset-0 z-30 bg-green-900/60 backdrop-blur-sm lg:hidden"
             onClick={() => setOpen(false)}
@@ -190,9 +214,13 @@ export function Shell({ role, name, demo, children }: { role: Role; name: string
         )}
 
         {/* Top Header Bar */}
-        <header className="sticky top-0 z-20 flex h-16 items-center gap-3 border-b border-cream-300 bg-white/95 px-4 backdrop-blur sm:px-6">
+        <header className="sticky top-0 z-20 flex min-h-16 items-center gap-2 border-b border-cream-300 bg-white/95 px-3 pt-[env(safe-area-inset-top)] backdrop-blur sm:gap-3 sm:px-6">
           <button
-            className="grid h-10 w-10 place-items-center rounded-lg text-green-700 hover:bg-green-50 lg:hidden"
+            ref={menuButtonRef}
+            type="button"
+            aria-expanded={open}
+            aria-controls="portal-navigation"
+            className="grid h-11 w-11 shrink-0 place-items-center rounded-lg text-green-700 hover:bg-green-50 lg:hidden"
             aria-label={open ? "Close menu" : "Open menu"}
             onClick={() => setOpen(!open)}
           >
@@ -200,17 +228,17 @@ export function Shell({ role, name, demo, children }: { role: Role; name: string
           </button>
 
           {/* Quick breadcrumb / brand hint */}
-          <div className="flex items-center gap-2 text-sm">
-            <span className="font-heading font-semibold text-green-900 capitalize">
+          <div className="flex min-w-0 items-center gap-1.5 text-sm sm:gap-2">
+            <span className="hidden font-heading font-semibold capitalize text-green-900 sm:inline">
               {role} Portal
             </span>
-            <span className="text-cream-300">/</span>
-            <span className="truncate text-xs text-ink-muted">
+            <span className="hidden text-cream-300 sm:inline">/</span>
+            <span className="truncate text-xs text-ink-muted sm:text-sm">
               {NAV[role].find((n) => path === n.href || path.startsWith(n.href + "/"))?.label ?? "Overview"}
             </span>
           </div>
 
-          <div className="flex-1" />
+          <div className="min-w-0 flex-1" />
 
           {/* AI Shortcut button */}
           <Link
@@ -242,7 +270,7 @@ export function Shell({ role, name, demo, children }: { role: Role; name: string
         </header>
 
         {/* Main Content Area */}
-        <main className="mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-8">
+        <main className="mx-auto w-full max-w-6xl px-3 py-5 sm:px-6 sm:py-8">
           {children}
         </main>
 

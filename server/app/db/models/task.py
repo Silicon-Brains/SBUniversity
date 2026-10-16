@@ -7,6 +7,7 @@ from sqlalchemy import (
     DateTime,
     Enum,
     ForeignKey,
+    Float,
     Integer,
     String,
     Text,
@@ -33,6 +34,16 @@ class TaskStatus(str, enum.Enum):
     ARCHIVED = "archived"
 
 
+class TaskResourceType(str, enum.Enum):
+    VIDEO = "video"
+    LEARNING_SOURCE = "learning_source"
+
+
+class TaskAssignmentScope(str, enum.Enum):
+    ALL_STUDENTS = "all_students"
+    SELECTED_STUDENTS = "selected_students"
+
+
 class CompletionStatus(str, enum.Enum):
     PENDING_REVIEW = "pending_review"
     COMPLETED = "completed"
@@ -45,8 +56,14 @@ class Task(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     __table_args__ = (
         CheckConstraint("points >= 0", name="ck_task_points_positive"),
         CheckConstraint(
+            "(resource_type IS NULL AND resource_url IS NULL) OR "
+            "(resource_type IS NOT NULL AND resource_url IS NOT NULL)",
+            name="ck_task_resource_type_url",
+        ),
+        CheckConstraint(
             "(type = 'exam' AND exam_id IS NOT NULL AND verification = 'auto') OR "
-            "(type = 'assignment' AND exam_id IS NULL AND verification = 'teacher_approval')",
+            "(type = 'assignment' AND exam_id IS NULL AND "
+            "verification IN ('auto', 'teacher_approval'))",
             name="ck_task_type_verification",
         ),
     )
@@ -66,6 +83,16 @@ class Task(Base, UUIDPrimaryKeyMixin, TimestampMixin):
         nullable=False,
     )
     due_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    resource_type: Mapped[Optional[TaskResourceType]] = mapped_column(
+        Enum(TaskResourceType, name="task_resource_type", values_callable=lambda obj: [e.value for e in obj]),
+        nullable=True,
+    )
+    resource_url: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    assignment_scope: Mapped[TaskAssignmentScope] = mapped_column(
+        Enum(TaskAssignmentScope, name="task_assignment_scope", values_callable=lambda obj: [e.value for e in obj]),
+        default=TaskAssignmentScope.ALL_STUDENTS,
+        nullable=False,
+    )
     status: Mapped[TaskStatus] = mapped_column(
         Enum(TaskStatus, name="task_status", values_callable=lambda obj: [e.value for e in obj]),
         default=TaskStatus.ACTIVE,
@@ -77,6 +104,23 @@ class Task(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     creator: Mapped["User"] = relationship("User", foreign_keys=[created_by])
     exam: Mapped[Optional["Exam"]] = relationship("Exam", back_populates="task", foreign_keys=[exam_id])
     completions: Mapped[List["TaskCompletion"]] = relationship("TaskCompletion", back_populates="task", cascade="all, delete-orphan")
+    recipients: Mapped[List["TaskRecipient"]] = relationship("TaskRecipient", back_populates="task", cascade="all, delete-orphan")
+
+
+class TaskRecipient(Base):
+    __tablename__ = "task_recipients"
+
+    task_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid, ForeignKey("tasks.id", ondelete="CASCADE"), primary_key=True
+    )
+    student_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid, ForeignKey("users.id", ondelete="CASCADE"), primary_key=True, index=True
+    )
+    assigned_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+    task: Mapped["Task"] = relationship("Task", back_populates="recipients")
 
 
 class TaskCompletion(Base, UUIDPrimaryKeyMixin):
@@ -112,3 +156,27 @@ class TaskCompletion(Base, UUIDPrimaryKeyMixin):
     student: Mapped["User"] = relationship("User", back_populates="task_completions", foreign_keys=[student_id])
     reviewer: Mapped[Optional["User"]] = relationship("User", foreign_keys=[reviewed_by])
     revoker: Mapped[Optional["User"]] = relationship("User", foreign_keys=[revoked_by])
+
+
+class TaskVideoProgress(Base):
+    __tablename__ = "task_video_progress"
+    __table_args__ = (
+        CheckConstraint(
+            "progress_percent >= 0 AND progress_percent <= 100",
+            name="ck_task_video_progress_percent",
+        ),
+    )
+
+    task_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid, ForeignKey("tasks.id", ondelete="CASCADE"), primary_key=True
+    )
+    student_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid, ForeignKey("users.id", ondelete="CASCADE"), primary_key=True, index=True
+    )
+    progress_percent: Mapped[float] = mapped_column(Float, default=0, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
+    )
+
+    task: Mapped["Task"] = relationship("Task")
+    student: Mapped["User"] = relationship("User")

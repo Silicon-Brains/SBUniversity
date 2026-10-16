@@ -1,12 +1,21 @@
 import uuid
 from datetime import datetime, timezone
 from typing import List, Optional, Tuple
-from sqlalchemy import func, select
+from sqlalchemy import and_, func, or_, select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 from app.db.models.course import Course
-from app.db.models.task import CompletionStatus, Task, TaskCompletion, TaskStatus, TaskType
+from app.db.models.task import (
+    CompletionStatus,
+    Task,
+    TaskAssignmentScope,
+    TaskCompletion,
+    TaskRecipient,
+    TaskStatus,
+    TaskType,
+    TaskVideoProgress,
+)
 from app.db.models.user import User
 
 
@@ -52,11 +61,46 @@ class TaskRepository:
         res = await self.db.execute(stmt)
         return list(res.scalars().all()), total
 
+    async def list_student_tasks(
+        self,
+        student_id: uuid.UUID,
+        course_ids: List[uuid.UUID],
+        course_id: Optional[uuid.UUID] = None,
+    ) -> List[Task]:
+        stmt = (
+            select(Task)
+            .options(selectinload(Task.course))
+            .where(
+                Task.status == TaskStatus.ACTIVE,
+                or_(
+                    and_(
+                        Task.assignment_scope == TaskAssignmentScope.ALL_STUDENTS,
+                        Task.course_id.in_(course_ids),
+                    ),
+                    and_(
+                        Task.assignment_scope == TaskAssignmentScope.SELECTED_STUDENTS,
+                        Task.id.in_(
+                            select(TaskRecipient.task_id).where(
+                                TaskRecipient.student_id == student_id
+                            )
+                        )
+                    ),
+                ),
+            )
+        )
+        if course_id:
+            stmt = stmt.where(Task.course_id == course_id)
+        stmt = stmt.order_by(Task.created_at.desc())
+        res = await self.db.execute(stmt)
+        return list(res.scalars().all())
+
     async def create(self, task: Task) -> Task:
         self.db.add(task)
         await self.db.commit()
-        await self.db.refresh(task)
-        return task
+        created_task = await self.get_by_id(task.id)
+        if created_task is None:
+            raise RuntimeError(f"Created task {task.id} could not be reloaded")
+        return created_task
 
     async def update(self, task: Task) -> Task:
         await self.db.commit()
@@ -113,7 +157,11 @@ class TaskRepository:
         await self.db.flush()
         return completion
 
-    async def list_pending_reviews(self, course_ids: Optional[List[uuid.UUID]] = None) -> List[TaskCompletion]:
+    async def list_pending_reviews(
+        self,
+        course_ids: Optional[List[uuid.UUID]] = None,
+        created_by: Optional[uuid.UUID] = None,
+    ) -> List[TaskCompletion]:
         stmt = (
             select(TaskCompletion)
             .join(Task, Task.id == TaskCompletion.task_id)
@@ -123,8 +171,14 @@ class TaskRepository:
             )
             .where(TaskCompletion.status == CompletionStatus.PENDING_REVIEW)
         )
-        if course_ids:
+        if course_ids is not None and created_by is not None:
+            stmt = stmt.where(
+                or_(Task.course_id.in_(course_ids), Task.created_by == created_by)
+            )
+        elif course_ids is not None:
             stmt = stmt.where(Task.course_id.in_(course_ids))
+        elif created_by is not None:
+            stmt = stmt.where(Task.created_by == created_by)
 
         stmt = stmt.order_by(TaskCompletion.submitted_at.asc())
         res = await self.db.execute(stmt)
@@ -136,6 +190,18 @@ class TaskRepository:
             .options(selectinload(TaskCompletion.task).selectinload(Task.course))
             .where(TaskCompletion.student_id == student_id)
             .order_by(TaskCompletion.submitted_at.desc())
+        )
+        res = await self.db.execute(stmt)
+        return list(res.scalars().all())
+
+    async def list_student_video_progress(
+        self, student_id: uuid.UUID, task_ids: List[uuid.UUID]
+    ) -> List[TaskVideoProgress]:
+        if not task_ids:
+            return []
+        stmt = select(TaskVideoProgress).where(
+            TaskVideoProgress.student_id == student_id,
+            TaskVideoProgress.task_id.in_(task_ids),
         )
         res = await self.db.execute(stmt)
         return list(res.scalars().all())

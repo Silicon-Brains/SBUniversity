@@ -4,7 +4,18 @@ from app.db.models.course import Course, Enrollment, EnrollmentStatus
 from app.db.models.exam import Exam, ExamStatus, Question, QuestionOption, ExamAttempt, AttemptStatus, AttemptAnswer
 from app.db.models.result import Result
 from app.db.models.certificate import Certificate
-from app.db.models.task import Task, TaskType, TaskVerification, TaskStatus, TaskCompletion, CompletionStatus
+from app.db.models.task import (
+    Task,
+    TaskType,
+    TaskVerification,
+    TaskStatus,
+    TaskResourceType,
+    TaskAssignmentScope,
+    TaskRecipient,
+    TaskCompletion,
+    TaskVideoProgress,
+    CompletionStatus,
+)
 from app.db.models.notice import Notice, NoticeAudience, NoticePriority, NoticeStatus
 from app.db.models.chat import ChatSession, ChatMessage, ChatRole
 from app.db.models.audit import AuditLog
@@ -33,7 +44,11 @@ __all__ = [
     "TaskType",
     "TaskVerification",
     "TaskStatus",
+    "TaskResourceType",
+    "TaskAssignmentScope",
+    "TaskRecipient",
     "TaskCompletion",
+    "TaskVideoProgress",
     "CompletionStatus",
     "Notice",
     "NoticeAudience",

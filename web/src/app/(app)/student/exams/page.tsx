@@ -84,14 +84,14 @@ export default function ExamsPage() {
           <Loader2 className="h-8 w-8 animate-spin text-green-700" />
         </div>
       ) : loadError ? (
-        <Card className="p-8 text-center">
+        <Card className="p-5 text-center sm:p-8">
           <p className="text-sm text-danger">{loadError}</p>
           <Button variant="secondary" size="sm" className="mt-4" onClick={() => void loadExams()}>
             Try Again
           </Button>
         </Card>
       ) : exams.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-cream-300 bg-white p-12 text-center">
+        <div className="rounded-2xl border border-dashed border-cream-300 bg-white p-6 text-center sm:p-12">
           <BookOpen className="mx-auto h-12 w-12 text-cream-400" />
           <h3 className="mt-3 font-heading text-lg font-bold text-green-900">
             No Active Course Examinations
@@ -118,8 +118,8 @@ export default function ExamsPage() {
                 className="flex flex-col justify-between gap-4 transition-all hover:shadow-md"
               >
                 <div className="space-y-2">
-                  <div className="flex items-start justify-between gap-2">
-                    <h3 className="font-heading text-base font-bold text-green-900">
+                  <div className="flex flex-wrap items-start justify-between gap-2">
+                    <h3 className="min-w-0 flex-1 break-words font-heading text-base font-bold text-green-900">
                       {e.title}
                     </h3>
                     {isLive ? (
@@ -139,7 +139,7 @@ export default function ExamsPage() {
                     Course: <b className="text-ink">{e.course_title || "Academic Course"}</b>
                   </p>
 
-                  <div className="flex items-center gap-1.5 text-xs text-ink-muted">
+                  <div className="flex items-start gap-1.5 text-xs text-ink-muted">
                     <Calendar size={13} className="text-green-700" />
                     <span>Window: {windowStr}</span>
                   </div>
@@ -156,18 +156,18 @@ export default function ExamsPage() {
                   </div>
                 </div>
 
-                <div className="mt-auto flex items-center justify-between border-t border-cream-200 pt-3">
+                <div className="mt-auto flex flex-col items-stretch gap-3 border-t border-cream-200 pt-3 sm:flex-row sm:items-center sm:justify-between">
                   <PointsChip points={e.task_points ?? 0} />
                   {isLive ? (
-                    <Button href={`/student/exams/${e.id}`} variant="primary" size="sm">
+                    <Button href={`/student/exams/${e.id}`} variant="primary" size="sm" className="w-full justify-center sm:w-auto">
                       Start Exam Now
                     </Button>
                   ) : isUpcoming ? (
-                    <Button variant="secondary" size="sm" disabled>
+                    <Button variant="secondary" size="sm" disabled className="w-full justify-center sm:w-auto">
                       Opens {start.toLocaleDateString("en-US", { month: "short", day: "numeric" })}
                     </Button>
                   ) : (
-                    <Button href="/student/results" variant="secondary" size="sm">
+                    <Button href="/student/results" variant="secondary" size="sm" className="w-full justify-center sm:w-auto">
                       View Results
                     </Button>
                   )}

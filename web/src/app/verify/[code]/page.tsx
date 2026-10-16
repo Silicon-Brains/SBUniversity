@@ -54,26 +54,26 @@ export default function VerifyCodePage({ params }: { params: Promise<{ code: str
     <div className="min-h-screen bg-cream-50">
       {/* Top Header */}
       <header className="border-b border-cream-300 bg-white px-4 py-4 sm:px-8">
-        <div className="mx-auto flex max-w-5xl items-center justify-between">
+        <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-3">
           <Link href="/" className="flex items-center gap-2.5">
             <span className="grid h-9 w-9 place-items-center rounded-lg bg-green-700 text-cream-200">
               <GraduationCap size={20} />
             </span>
             <span className="font-heading text-lg font-bold text-green-700">SBUniversity</span>
           </Link>
-          <Button href="/" variant="secondary" size="sm">
+          <Button href="/" variant="secondary" size="sm" className="max-w-full">
             <ArrowLeft size={14} /> Back to University
           </Button>
         </div>
       </header>
 
       {/* Main Verification Card */}
-      <main className="mx-auto max-w-3xl px-4 py-12 sm:px-6">
+      <main className="mx-auto max-w-3xl px-3 py-8 sm:px-6 sm:py-12">
         <div className="mb-6 text-center">
           <span className="inline-flex items-center gap-1.5 rounded-full bg-green-100 px-3 py-1 text-xs font-semibold text-green-700 mb-2">
             <ShieldCheck size={14} /> Public Credential Registry
           </span>
-          <h1 className="font-heading text-3xl font-bold text-green-900">
+          <h1 className="font-heading text-2xl font-bold text-green-900 sm:text-3xl">
             Credential Verification Result
           </h1>
           <p className="mt-1 text-sm text-ink-muted">
@@ -82,10 +82,10 @@ export default function VerifyCodePage({ params }: { params: Promise<{ code: str
         </div>
 
         {/* Verification Status Card */}
-        <div className="overflow-hidden rounded-2xl border-2 border-cream-300 bg-white shadow-xl">
+        <div className="min-w-0 overflow-hidden rounded-2xl border-2 border-cream-300 bg-white shadow-xl">
           {/* Banner */}
           <div
-            className={`flex items-center justify-between px-6 py-4 text-white ${
+            className={`flex flex-col items-start justify-between gap-3 px-4 py-4 text-white sm:flex-row sm:items-center sm:px-6 ${
               credentialData.isValid ? "bg-green-700" : "bg-danger"
             }`}
           >
@@ -102,13 +102,13 @@ export default function VerifyCodePage({ params }: { params: Promise<{ code: str
                 <p className="text-xs text-cream-200">Official Institutional Record</p>
               </div>
             </div>
-            <span className="rounded-md bg-white/20 px-2.5 py-1 font-mono text-xs font-semibold">
+            <span className="max-w-full break-all rounded-md bg-white/20 px-2.5 py-1 font-mono text-xs font-semibold">
               {credentialData.code}
             </span>
           </div>
 
           {/* Details Table */}
-          <div className="p-6 sm:p-8 space-y-6">
+          <div className="space-y-5 p-4 sm:space-y-6 sm:p-8">
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="rounded-xl bg-cream-50 p-4">
                 <span className="text-xs font-medium text-ink-muted flex items-center gap-1.5">
@@ -176,7 +176,7 @@ export default function VerifyCodePage({ params }: { params: Promise<{ code: str
             </div>
 
             {/* Check another code */}
-            <div className="border-t border-cream-200 pt-6">
+            <div className="border-t border-cream-200 pt-5 sm:pt-6">
               <h3 className="text-xs font-semibold uppercase tracking-wider text-green-900 mb-2">
                 Verify another code
               </h3>
@@ -187,16 +187,16 @@ export default function VerifyCodePage({ params }: { params: Promise<{ code: str
                     window.location.href = `/verify/${encodeURIComponent(searchCode.trim())}`;
                   }
                 }}
-                className="flex gap-2"
+                className="flex flex-col gap-2 sm:flex-row"
               >
                 <input
                   type="text"
                   value={searchCode}
                   onChange={(e) => setSearchCode(e.target.value)}
                   placeholder="Enter Certificate Code (e.g. SBU-CERT-2026-PY01) or Student ID"
-                  className="h-11 flex-1 rounded-lg border border-cream-300 bg-white px-3 text-sm text-ink focus:border-green-700 focus:outline-none"
+                  className="h-11 min-w-0 flex-1 rounded-lg border border-cream-300 bg-white px-3 text-sm text-ink focus:border-green-700 focus:outline-none"
                 />
-                <Button variant="primary" size="sm" type="submit">
+                <Button variant="primary" size="sm" type="submit" className="w-full sm:w-auto">
                   <Search size={15} /> Verify
                 </Button>
               </form>

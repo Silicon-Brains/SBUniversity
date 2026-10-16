@@ -28,10 +28,16 @@ export default function SignInPage() {
         <p className="text-sm text-cream-200">© 2026 SBUniversity</p>
       </aside>
 
-      <main className="flex items-center justify-center px-4 py-12">
+      <main className="flex min-w-0 items-center justify-center px-4 py-8 sm:py-12">
         <div className="w-full max-w-md space-y-4">
-          <div className="flex items-center justify-between border-b border-cream-200 pb-3">
-            <div>
+          <Link href="/" className="inline-flex items-center gap-2 font-heading text-base font-bold text-green-700 lg:hidden">
+            <span className="grid h-9 w-9 place-items-center rounded-lg bg-green-700 text-cream-200">
+              <GraduationCap size={19} aria-hidden />
+            </span>
+            SBUniversity
+          </Link>
+          <div className="flex flex-col items-stretch gap-3 border-b border-cream-200 pb-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="min-w-0">
               <h1 className="text-2xl font-bold text-green-900">Welcome back</h1>
               <p className="text-xs text-ink-muted">Sign in to continue to your academic portal.</p>
             </div>
@@ -40,14 +46,14 @@ export default function SignInPage() {
             <button
               type="button"
               onClick={() => setUseDemoMode(!useDemoMode)}
-              className="rounded-lg border border-cream-300 bg-cream-100 px-2.5 py-1 text-xs font-semibold text-green-900 hover:bg-cream-200 transition-colors"
+              className="min-h-11 w-full rounded-lg border border-cream-300 bg-cream-100 px-3 py-2 text-xs font-semibold text-green-900 transition-colors hover:bg-cream-200 sm:w-auto"
             >
               {useDemoMode ? "Use Clerk OAuth" : "1-Click Demo Accounts"}
             </button>
           </div>
 
           {useDemoMode ? (
-            <div className="rounded-xl border border-cream-300 bg-white p-5 shadow-sm space-y-3">
+            <div className="space-y-3 rounded-xl border border-cream-300 bg-white p-4 shadow-sm sm:p-5">
               <div className="flex items-center gap-2 text-xs font-semibold text-green-700 bg-green-50 p-2 rounded-lg">
                 <Sparkles size={14} className="text-bordo-700" />
                 <span>One-Click Development Accounts (No Google OAuth required)</span>
@@ -68,7 +74,7 @@ export default function SignInPage() {
               />
 
               {/* Helpful hint for Clerk External Account error */}
-              <div className="rounded-xl border border-cream-300 bg-cream-100/60 p-3.5 text-xs text-ink-muted">
+              <div className="rounded-xl border border-cream-300 bg-cream-100/60 p-3.5 text-xs leading-relaxed text-ink-muted">
                 <p className="font-semibold text-green-900 mb-1 flex items-center gap-1.5">
                   <Shield size={13} className="text-green-700" />
                   First time signing in with Google?

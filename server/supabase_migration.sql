@@ -57,6 +57,14 @@ DO $$ BEGIN
 EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
 DO $$ BEGIN
+    CREATE TYPE task_resource_type AS ENUM ('video', 'learning_source');
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+DO $$ BEGIN
+    CREATE TYPE task_assignment_scope AS ENUM ('all_students', 'selected_students');
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+DO $$ BEGIN
     CREATE TYPE completion_status AS ENUM ('pending_review', 'completed', 'rejected', 'revoked');
 EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
@@ -310,9 +318,16 @@ CREATE TABLE IF NOT EXISTS public.tasks (
     points INT NOT NULL CHECK (points >= 0),
     verification task_verification NOT NULL,
     due_at TIMESTAMPTZ NULL,
+    resource_type task_resource_type NULL,
+    resource_url TEXT NULL,
+    assignment_scope task_assignment_scope NOT NULL DEFAULT 'all_students',
     status task_status NOT NULL DEFAULT 'active',
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    CONSTRAINT ck_task_resource_type_url CHECK (
+        (resource_type IS NULL AND resource_url IS NULL) OR
+        (resource_type IS NOT NULL AND resource_url IS NOT NULL)
+    ),
     CONSTRAINT ck_task_type_exam CHECK (
         (type = 'exam' AND exam_id IS NOT NULL AND verification = 'auto') OR
         (type = 'assignment' AND exam_id IS NULL AND verification = 'teacher_approval')
@@ -322,10 +337,44 @@ CREATE TABLE IF NOT EXISTS public.tasks (
 CREATE INDEX IF NOT EXISTS idx_tasks_course_status ON public.tasks(course_id, status);
 CREATE INDEX IF NOT EXISTS idx_tasks_created_by ON public.tasks(created_by);
 
+ALTER TABLE public.tasks
+    ADD COLUMN IF NOT EXISTS resource_type task_resource_type,
+    ADD COLUMN IF NOT EXISTS resource_url TEXT,
+    ADD COLUMN IF NOT EXISTS assignment_scope task_assignment_scope NOT NULL DEFAULT 'all_students';
+
 DROP TRIGGER IF EXISTS set_timestamp_tasks ON public.tasks;
 CREATE TRIGGER set_timestamp_tasks
 BEFORE UPDATE ON public.tasks
 FOR EACH ROW EXECUTE FUNCTION trigger_set_timestamp();
+
+ALTER TABLE public.tasks
+    DROP CONSTRAINT IF EXISTS ck_task_type_exam,
+    DROP CONSTRAINT IF EXISTS ck_task_type_verification;
+
+ALTER TABLE public.tasks
+    ADD CONSTRAINT ck_task_type_verification CHECK (
+        (type = 'exam' AND exam_id IS NOT NULL AND verification = 'auto') OR
+        (type = 'assignment' AND exam_id IS NULL AND verification IN ('auto', 'teacher_approval'))
+    );
+
+ALTER TABLE public.tasks
+    DROP CONSTRAINT IF EXISTS ck_task_resource_type_url;
+
+ALTER TABLE public.tasks
+    ADD CONSTRAINT ck_task_resource_type_url CHECK (
+        (resource_type IS NULL AND resource_url IS NULL) OR
+        (resource_type IS NOT NULL AND resource_url IS NOT NULL)
+    );
+
+-- 4.15 task_recipients
+CREATE TABLE IF NOT EXISTS public.task_recipients (
+    task_id UUID NOT NULL REFERENCES public.tasks(id) ON DELETE CASCADE,
+    student_id UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
+    assigned_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    PRIMARY KEY (task_id, student_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_task_recipients_student ON public.task_recipients(student_id);
 
 -- 4.15 task_completions
 CREATE TABLE IF NOT EXISTS public.task_completions (
@@ -353,6 +402,19 @@ CREATE TABLE IF NOT EXISTS public.task_completions (
 CREATE INDEX IF NOT EXISTS idx_task_completions_student ON public.task_completions(student_id, status);
 CREATE INDEX IF NOT EXISTS idx_task_completions_task ON public.task_completions(task_id, status);
 CREATE INDEX IF NOT EXISTS idx_task_completions_completed ON public.task_completions(student_id, completed_at) WHERE status = 'completed';
+
+-- 4.16 task_video_progress
+CREATE TABLE IF NOT EXISTS public.task_video_progress (
+    task_id UUID NOT NULL REFERENCES public.tasks(id) ON DELETE CASCADE,
+    student_id UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
+    progress_percent DOUBLE PRECISION NOT NULL DEFAULT 0
+        CHECK (progress_percent >= 0 AND progress_percent <= 100),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    PRIMARY KEY (task_id, student_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_task_video_progress_student
+    ON public.task_video_progress(student_id);
 
 -- 4.16 notices
 CREATE TABLE IF NOT EXISTS public.notices (
@@ -444,7 +506,9 @@ ALTER TABLE public.attempt_answers ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.results ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.certificates ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.tasks ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.task_recipients ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.task_completions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.task_video_progress ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.notices ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.chat_sessions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.chat_messages ENABLE ROW LEVEL SECURITY;

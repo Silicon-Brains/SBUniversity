@@ -3,7 +3,11 @@
  * Typed fetch wrapper for the FastAPI backend (/api/v1) with support for Clerk JWTs and Dev Bypass Tokens.
  */
 export function getBaseUrl(): string {
-  const defaultUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000/api/v1";
+  const defaultUrl =
+    process.env.NEXT_PUBLIC_API_BASE_URL ??
+    (process.env.NODE_ENV === "production"
+      ? "https://sbuniversity.onrender.com/api/v1"
+      : "http://localhost:8000/api/v1");
   try {
     const url = new URL(defaultUrl);
     if (typeof window !== "undefined") {

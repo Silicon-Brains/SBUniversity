@@ -5,14 +5,15 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 from app.core.deps import get_current_user, require_role
-from app.db.models.course import Course
+from app.db.models.course import Course, Enrollment, EnrollmentStatus
 from app.db.models.exam import Exam, ExamStatus
 from app.db.models.notice import Notice, NoticeStatus
 from app.db.models.result import Result
 from app.db.models.task import CompletionStatus, Task, TaskCompletion
-from app.db.models.user import User, UserRole
+from app.db.models.user import User, UserRole, UserStatus
 from app.db.session import get_db
 from app.schemas.result import ResultResponse
+from app.schemas.task import TeacherTaskCourseOption, TeacherTaskStudentOption
 
 router = APIRouter(prefix="/teacher", tags=["Teacher"], dependencies=[Depends(require_role([UserRole.TEACHER, UserRole.ADMIN]))])
 
@@ -90,6 +91,70 @@ async def get_teacher_dashboard(
         "pending_task_approvals": pending_approvals,
         "recent_notices": recent_notices,
     }
+
+
+@router.get(
+    "/task-courses",
+    response_model=List[TeacherTaskCourseOption],
+)
+async def list_courses_for_task_creation(
+    db: AsyncSession = Depends(get_db),
+):
+    stmt = select(Course.id, Course.code, Course.title).order_by(Course.title)
+    rows = (await db.execute(stmt)).all()
+    return [
+        TeacherTaskCourseOption(id=row.id, title=row.title, code=row.code)
+        for row in rows
+    ]
+
+
+@router.get(
+    "/task-students",
+    response_model=List[TeacherTaskStudentOption],
+)
+async def list_students_for_task_creation(
+    db: AsyncSession = Depends(get_db),
+):
+    stmt = (
+        select(User.id, User.full_name, User.email)
+        .where(User.role == UserRole.STUDENT, User.status == UserStatus.ACTIVE)
+        .order_by(User.full_name)
+    )
+    rows = (await db.execute(stmt)).all()
+    return [
+        TeacherTaskStudentOption(id=row.id, full_name=row.full_name, email=row.email)
+        for row in rows
+    ]
+
+
+@router.get(
+    "/courses/{course_id}/students",
+    response_model=List[TeacherTaskStudentOption],
+)
+async def list_course_students_for_task(
+    course_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    course = await db.get(Course, course_id)
+    if not course:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Course not found")
+    stmt = (
+        select(User.id, User.full_name, User.email)
+        .join(Enrollment, Enrollment.student_id == User.id)
+        .where(
+            Enrollment.course_id == course_id,
+            Enrollment.status == EnrollmentStatus.ACTIVE,
+            User.role == UserRole.STUDENT,
+            User.status == UserStatus.ACTIVE,
+        )
+        .order_by(User.full_name)
+    )
+    rows = (await db.execute(stmt)).all()
+    return [
+        TeacherTaskStudentOption(id=row.id, full_name=row.full_name, email=row.email)
+        for row in rows
+    ]
 
 
 @router.get("/courses/{course_id}/results", response_model=List[ResultResponse])

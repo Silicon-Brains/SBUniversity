@@ -101,7 +101,7 @@ export default function NoticesPage() {
             <button
               key={f}
               onClick={() => setFilter(f)}
-              className={`h-9 rounded-full px-3.5 text-xs font-semibold capitalize transition-colors ${
+              className={`min-h-11 rounded-full px-3.5 text-xs font-semibold capitalize transition-colors ${
                 filter === f
                   ? "bg-green-700 text-cream-50"
                   : "bg-white text-green-700 ring-1 ring-cream-300 hover:bg-green-50"
@@ -121,7 +121,7 @@ export default function NoticesPage() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search announcements..."
-            className="h-9 w-full rounded-lg border border-cream-300 bg-white pl-9 pr-3 text-xs text-ink placeholder:text-ink-placeholder focus:border-green-700 focus:outline-none"
+            className="h-11 w-full rounded-lg border border-cream-300 bg-white pl-9 pr-3 text-sm text-ink placeholder:text-ink-placeholder focus:border-green-700 focus:outline-none"
           />
         </div>
       </div>
@@ -132,7 +132,7 @@ export default function NoticesPage() {
           <Loader2 className="h-8 w-8 animate-spin text-green-700" />
         </div>
       ) : filtered.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-cream-300 bg-white p-12 text-center">
+        <div className="rounded-2xl border border-dashed border-cream-300 bg-white p-6 text-center sm:p-12">
           <Megaphone className="mx-auto h-12 w-12 text-cream-400" />
           <h3 className="mt-3 font-heading text-lg font-bold text-green-900">No Announcements Found</h3>
           <p className="mt-1 text-sm text-ink-muted">
@@ -153,13 +153,13 @@ export default function NoticesPage() {
             return (
               <Card
                 key={n.id}
-                className={`p-6 transition-all hover:shadow-md ${
+                className={`p-4 transition-all hover:shadow-md sm:p-6 ${
                   n.priority === "urgent" ? "border-l-4 border-l-bordo-700" : ""
                 }`}
               >
-                <div className="flex flex-wrap items-center justify-between gap-2 border-b border-cream-200 pb-3">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <h2 className="font-heading text-base font-bold text-green-900">{n.title}</h2>
+                <div className="flex flex-wrap items-start justify-between gap-2 border-b border-cream-200 pb-3">
+                  <div className="flex min-w-0 flex-wrap items-center gap-2">
+                    <h2 className="min-w-0 break-words font-heading text-base font-bold text-green-900">{n.title}</h2>
                     {n.is_pinned && (
                       <Badge tone="info">
                         <Pin size={11} className="mr-0.5" /> Pinned
@@ -175,10 +175,10 @@ export default function NoticesPage() {
                   <span className="text-xs text-ink-muted">{dateStr}</span>
                 </div>
 
-                <p className="mt-3 text-sm text-ink leading-relaxed">{n.body}</p>
+                <p className="mt-3 whitespace-pre-line break-words text-sm leading-relaxed text-ink">{n.body}</p>
 
-                <div className="mt-4 flex items-center justify-between border-t border-cream-200 pt-3 text-xs text-ink-muted">
-                  <span className="flex items-center gap-1.5">
+                <div className="mt-4 flex flex-col items-start justify-between gap-3 border-t border-cream-200 pt-3 text-xs text-ink-muted sm:flex-row sm:items-center">
+                  <span className="flex min-w-0 items-start gap-1.5">
                     <User size={13} className="text-green-700" />
                     <span>
                       Posted by <b className="text-green-900">{n.author_name || "Administration"}</b>

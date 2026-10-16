@@ -21,6 +21,8 @@ chat_role:        user | model
 task_type:        exam | assignment
 task_verification: auto | teacher_approval
 task_status:      active | archived
+task_resource_type: video | learning_source
+task_assignment_scope: all_students | selected_students
 completion_status: pending_review | completed | rejected | revoked
 ```
 
@@ -38,6 +40,8 @@ exam_attempts 1──1 results
 users(student) *──* courses → certificates
 courses 1──* tasks            (exams 1──0..1 tasks, for exam-type tasks)
 tasks 1──* task_completions *──1 users(student)
+tasks 1──* task_recipients *──1 users(student)   (selected-student assignments)
+tasks 1──* task_video_progress *──1 users(student)
 users 1──* notices (author)
 users 1──* chat_sessions 1──* chat_messages
 users 1──* audit_logs (actor)
@@ -108,6 +112,7 @@ courses
  ├── created_at / updated_at
 ```
 Indexes: `(teacher_id)`, `(department_id)`.
+Admin course creation can enroll every currently active student in one transaction by inserting active `enrollments` rows for the new course. The default is enabled; suspended/deleted accounts are excluded. Each enrollment uses the existing `(student_id, course_id)` unique constraint; the course itself is stored in `courses`.
 
 ### enrollments
 ```
@@ -242,12 +247,26 @@ tasks
  ├── points        int NOT NULL CHECK (points >= 0)
  ├── verification  task_verification NOT NULL
  ├── due_at        timestamptz NULL                                  -- informational
+ ├── resource_type task_resource_type NULL                           -- video or learning source
+ ├── resource_url  text NULL
+ ├── assignment_scope task_assignment_scope NOT NULL default 'all_students'
  ├── status        task_status NOT NULL default 'active'
  ├── created_at / updated_at
 ```
 Checks: `type='exam' ⇒ exam_id IS NOT NULL AND verification='auto'`; `type='assignment' ⇒ exam_id IS NULL AND verification='teacher_approval'`.
+Resource type and URL must either both be set or both be null. `all_students` targets active course enrollments; `selected_students` uses `task_recipients`.
 Indexes: `(course_id, status)`, `(created_by)`.
-Rules (service layer): exam tasks are created/archived by exam publish/close; `points` becomes **immutable** once any completion exists; published exams cannot be hard-deleted.
+Rules (service layer): exam tasks are created/archived by exam publish/close; new linked learning assignments use `verification='teacher_approval'` and award their configured points only after faculty approval; legacy assignments using `verification='auto'` continue to award points immediately on completion; `points` becomes **immutable** once any completion exists; published exams cannot be hard-deleted.
+
+### task_recipients
+```
+task_recipients
+ ├── task_id     uuid NOT NULL → tasks.id ON DELETE CASCADE
+ ├── student_id  uuid NOT NULL → users.id ON DELETE CASCADE
+ ├── assigned_at timestamptz NOT NULL default now()
+ └── PRIMARY KEY (task_id, student_id)
+```
+Each recipient must be an active student. A selected student can be assigned even if they are not enrolled in the task's course; selected tasks are visible to those recipients only. `all_students` tasks are visible to active students enrolled in the course.
 
 ### task_completions
 ```
@@ -271,6 +290,17 @@ task_completions
 Indexes: `(student_id, status)`, `(task_id, status)`, partial `(student_id, completed_at) WHERE status='completed'`.
 Constraint: `status='completed' ⇒ completed_at IS NOT NULL AND points_awarded >= 0`.
 Rows are **never hard-deleted** — revoke instead (keeps the audit trail).
+
+### task_video_progress
+```
+task_video_progress
+ ├── task_id          uuid NOT NULL → tasks.id ON DELETE CASCADE
+ ├── student_id       uuid NOT NULL → users.id ON DELETE CASCADE
+ ├── progress_percent double precision NOT NULL default 0 CHECK (0..100)
+ ├── updated_at       timestamptz NOT NULL default now()
+ └── PRIMARY KEY (task_id, student_id)
+```
+Students can update progress only for assigned video tasks. Progress is monotonic and its increase is rate-limited using the reported video duration and elapsed time; submissions are blocked until recorded progress reaches 80%. The student UI measures played segments through YouTube's embedded player; points still require faculty approval.
 
 ### notices
 ```

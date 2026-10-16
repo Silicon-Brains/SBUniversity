@@ -92,8 +92,8 @@ export default function TeacherDashboard() {
   return (
     <div className="space-y-6">
       {/* Welcome & Quick Action Header */}
-      <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-cream-300 bg-gradient-to-r from-cream-100 to-cream-200 p-6 shadow-sm">
-        <div className="space-y-1">
+      <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-cream-300 bg-gradient-to-r from-cream-100 to-cream-200 p-4 shadow-sm sm:p-6">
+        <div className="min-w-0 space-y-1">
           <div className="flex items-center gap-2">
             <span className="rounded-full bg-green-700 px-2.5 py-0.5 text-[11px] font-bold text-cream-50 uppercase tracking-wider">
               Faculty Portal
@@ -102,7 +102,7 @@ export default function TeacherDashboard() {
               Department Faculty Control
             </span>
           </div>
-          <h1 className="font-heading text-2xl font-bold text-green-900 sm:text-3xl">
+          <h1 className="break-words font-heading text-2xl font-bold text-green-900 sm:text-3xl">
             Welcome, {user?.fullName || "Faculty Member"}!
           </h1>
           <p className="text-sm text-ink-muted">
@@ -110,11 +110,11 @@ export default function TeacherDashboard() {
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
-          <Button href="/teacher/exams/new" variant="primary" size="md">
+        <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center sm:gap-3">
+          <Button href="/teacher/exams/new" variant="primary" size="md" className="min-h-11 w-full sm:w-auto">
             <Plus size={16} /> Create Exam
           </Button>
-          <Button href="/teacher/tasks" variant="secondary" size="md">
+          <Button href="/teacher/tasks" variant="secondary" size="md" className="min-h-11 w-full sm:w-auto">
             <ClipboardCheck size={16} /> Review Submissions
           </Button>
         </div>
@@ -147,11 +147,11 @@ export default function TeacherDashboard() {
       <div className="grid gap-6 lg:grid-cols-12">
         {/* Managed Exams List */}
         <div className="lg:col-span-7 space-y-4">
-          <Card className="p-6">
-            <div className="flex items-center justify-between border-b border-cream-200 pb-3 mb-4">
-              <div className="flex items-center gap-2">
+          <Card className="min-w-0 p-4 sm:p-6">
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-2 border-b border-cream-200 pb-3">
+              <div className="flex min-w-0 items-center gap-2">
                 <FileText size={18} className="text-green-700" />
-                <h2 className="font-heading text-base font-bold text-green-900">
+                <h2 className="break-words font-heading text-base font-bold text-green-900">
                   Active Course Examinations
                 </h2>
               </div>
@@ -183,9 +183,9 @@ export default function TeacherDashboard() {
                       key={e.id}
                       className="flex flex-col justify-between gap-3 rounded-xl border border-cream-200 bg-cream-50/50 p-4 transition-all hover:bg-cream-100/50 sm:flex-row sm:items-center"
                     >
-                      <div>
-                        <h3 className="font-semibold text-sm text-green-900">{e.title}</h3>
-                        <p className="text-xs text-ink-muted">
+                      <div className="min-w-0">
+                        <h3 className="break-words font-semibold text-sm text-green-900">{e.title}</h3>
+                        <p className="break-words text-xs text-ink-muted">
                           {e.course_title || "Course"} · Window: {startStr} – {endStr}
                         </p>
                         <p className="text-[11px] text-ink-muted pt-1">
@@ -193,7 +193,7 @@ export default function TeacherDashboard() {
                         </p>
                       </div>
 
-                      <div className="flex items-center gap-2">
+                      <div className="flex flex-wrap items-center gap-2">
                         <PointsChip points={e.task_points ?? 0} />
                         <Button href={`/student/exams/${e.id}`} variant="secondary" size="sm">
                           Preview
@@ -209,11 +209,11 @@ export default function TeacherDashboard() {
 
         {/* Assigned Courses and Notices */}
         <div className="lg:col-span-5 space-y-6">
-          <Card className="p-6">
-            <div className="flex items-center justify-between border-b border-cream-200 pb-3 mb-4">
-              <div className="flex items-center gap-2">
+          <Card className="min-w-0 p-4 sm:p-6">
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-2 border-b border-cream-200 pb-3">
+              <div className="flex min-w-0 items-center gap-2">
                 <BookOpen size={18} className="text-green-700" />
-                <h2 className="font-heading text-base font-bold text-green-900">
+                <h2 className="break-words font-heading text-base font-bold text-green-900">
                   Assigned Teaching Courses
                 </h2>
               </div>
@@ -228,9 +228,9 @@ export default function TeacherDashboard() {
             ) : (
               <div className="space-y-3">
                 {data?.my_courses?.map((c) => (
-                  <div key={c.id} className="flex items-center justify-between rounded-lg bg-cream-50 p-3">
-                    <div>
-                      <p className="text-sm font-semibold text-green-900">{c.code} – {c.title}</p>
+                  <div key={c.id} className="flex min-w-0 flex-wrap items-center justify-between gap-2 rounded-lg bg-cream-50 p-3">
+                    <div className="min-w-0">
+                      <p className="break-words text-sm font-semibold text-green-900">{c.code} – {c.title}</p>
                       <span className="text-[10px] text-ink-muted">
                         Status: {c.is_published ? "Published & Enrolled" : "Draft"}
                       </span>

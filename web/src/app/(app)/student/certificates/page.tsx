@@ -97,7 +97,7 @@ export default function StudentCertificatesPage() {
           <Loader2 className="h-8 w-8 animate-spin text-green-700" />
         </div>
       ) : activeCerts.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-cream-300 bg-white p-12 text-center shadow-sm">
+        <div className="rounded-2xl border border-dashed border-cream-300 bg-white p-6 text-center shadow-sm sm:p-12">
           <Award className="mx-auto h-12 w-12 text-cream-400" />
           <h3 className="mt-3 font-heading text-lg font-bold text-green-900">
             No Course Certificates Earned Yet
@@ -124,19 +124,19 @@ export default function StudentCertificatesPage() {
             return (
               <div
                 key={cert.id}
-                className="group relative flex flex-col overflow-hidden rounded-2xl border-2 border-green-700/30 bg-white p-6 shadow-md transition-all hover:border-green-700 hover:shadow-xl"
+                className="group relative flex min-w-0 flex-col overflow-hidden rounded-2xl border-2 border-green-700/30 bg-white p-4 shadow-md transition-all hover:border-green-700 hover:shadow-xl sm:p-6"
               >
                 {/* Top Certificate Header Banner */}
-                <div className="flex items-start justify-between border-b border-cream-200 pb-4">
-                  <div className="flex items-center gap-3">
+                <div className="flex flex-wrap items-start justify-between gap-3 border-b border-cream-200 pb-4">
+                  <div className="flex min-w-0 items-center gap-3">
                     <div className="grid h-12 w-12 place-items-center rounded-xl bg-cream-200 text-green-900 shadow-sm">
                       <Award size={26} className="text-bordo-700" />
                     </div>
-                    <div>
+                    <div className="min-w-0">
                       <span className="text-[10px] font-bold uppercase tracking-wider text-green-700">
                         SB UNIVERSITY CREDENTIAL
                       </span>
-                      <h3 className="font-heading text-lg font-bold text-green-900">
+                      <h3 className="break-words font-heading text-lg font-bold text-green-900">
                         {courseTitle}
                       </h3>
                     </div>
@@ -148,26 +148,26 @@ export default function StudentCertificatesPage() {
 
                 {/* Certificate Details */}
                 <div className="my-5 space-y-2 text-xs text-ink-muted">
-                  <div className="flex justify-between">
+                  <div className="flex flex-col gap-1 sm:flex-row sm:justify-between">
                     <span>Certificate Code:</span>
-                    <span className="font-mono font-bold text-green-900">
+                    <span className="break-all font-mono font-bold text-green-900">
                       {cert.certificate_code}
                     </span>
                   </div>
-                  <div className="flex justify-between">
+                  <div className="flex flex-col gap-1 sm:flex-row sm:justify-between">
                     <span>Final Academic Score:</span>
                     <span className="font-semibold text-green-700">
                       {cert.final_percentage}% (Passed with Distinction)
                     </span>
                   </div>
-                  <div className="flex justify-between">
+                  <div className="flex flex-col gap-1 sm:flex-row sm:justify-between">
                     <span>Issued On:</span>
                     <span className="font-medium text-ink">{issueDateStr}</span>
                   </div>
                 </div>
 
                 {/* Verification & Action Bar */}
-                <div className="mt-auto flex flex-wrap items-center justify-between gap-3 border-t border-cream-200 pt-4">
+                <div className="mt-auto flex flex-col items-stretch justify-between gap-3 border-t border-cream-200 pt-4 sm:flex-row sm:items-center">
                   <Link
                     href={`/verify/${cert.certificate_code}`}
                     className="inline-flex items-center gap-1.5 text-xs font-semibold text-green-700 hover:underline"
@@ -180,6 +180,7 @@ export default function StudentCertificatesPage() {
                   <Button
                     variant="primary"
                     size="sm"
+                    className="w-full justify-center sm:w-auto"
                     onClick={() => handleDownloadPdf(cert)}
                     disabled={downloadingId === cert.id}
                   >

@@ -109,7 +109,7 @@ export default function AdminAnalyticsPage() {
       />
 
       {/* Top Level Realtime Stats */}
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard
           value={registeredStudents}
           label="Enrolled Students"
@@ -133,10 +133,11 @@ export default function AdminAnalyticsPage() {
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-2 border-b border-cream-300 pb-2">
+      <div className="-mx-1 flex gap-2 overflow-x-auto border-b border-cream-300 px-1 pb-2">
         <button
           onClick={() => setActiveTab("overview")}
-          className={`h-9 rounded-lg px-4 text-xs font-semibold transition-colors ${
+          aria-pressed={activeTab === "overview"}
+          className={`min-h-11 shrink-0 rounded-lg px-4 text-xs font-semibold transition-colors ${
             activeTab === "overview"
               ? "bg-green-700 text-cream-50"
               : "bg-white text-green-700 hover:bg-cream-100"
@@ -146,7 +147,8 @@ export default function AdminAnalyticsPage() {
         </button>
         <button
           onClick={() => setActiveTab("faculty")}
-          className={`h-9 rounded-lg px-4 text-xs font-semibold transition-colors ${
+          aria-pressed={activeTab === "faculty"}
+          className={`min-h-11 shrink-0 rounded-lg px-4 text-xs font-semibold transition-colors ${
             activeTab === "faculty"
               ? "bg-green-700 text-cream-50"
               : "bg-white text-green-700 hover:bg-cream-100"
@@ -156,7 +158,8 @@ export default function AdminAnalyticsPage() {
         </button>
         <button
           onClick={() => setActiveTab("students")}
-          className={`h-9 rounded-lg px-4 text-xs font-semibold transition-colors ${
+          aria-pressed={activeTab === "students"}
+          className={`min-h-11 shrink-0 rounded-lg px-4 text-xs font-semibold transition-colors ${
             activeTab === "students"
               ? "bg-green-700 text-cream-50"
               : "bg-white text-green-700 hover:bg-cream-100"
@@ -172,7 +175,7 @@ export default function AdminAnalyticsPage() {
         </div>
       ) : activeTab === "overview" ? (
         <div className="grid gap-6 lg:grid-cols-12">
-          <Card className="lg:col-span-8 p-6 space-y-4">
+          <Card className="min-w-0 p-4 space-y-4 sm:p-6 lg:col-span-8">
             <div className="flex items-center justify-between border-b border-cream-200 pb-3">
               <div>
                 <h3 className="font-heading text-base font-bold text-green-900">
@@ -205,7 +208,7 @@ export default function AdminAnalyticsPage() {
             </div>
           </Card>
 
-          <Card className="lg:col-span-4 p-6 space-y-4">
+          <Card className="min-w-0 p-4 space-y-4 sm:p-6 lg:col-span-4">
             <h3 className="font-heading text-base font-bold text-green-900 border-b border-cream-200 pb-3">
               System Health
             </h3>
@@ -230,15 +233,15 @@ export default function AdminAnalyticsPage() {
           </Card>
         </div>
       ) : activeTab === "faculty" ? (
-        <div className="overflow-x-auto rounded-xl border border-cream-300 bg-white shadow-sm">
-          <table className="w-full min-w-[500px] text-left text-sm">
+        <div className="max-w-full overflow-x-auto rounded-xl border border-cream-300 bg-white shadow-sm">
+          <table className="w-full min-w-[560px] text-left text-sm">
             <thead className="bg-cream-100 text-xs font-semibold uppercase text-green-900">
               <tr>
-                <th className="px-5 py-3.5">Faculty Member</th>
-                <th className="px-5 py-3.5">Courses</th>
-                <th className="px-5 py-3.5">Exams</th>
-                <th className="px-5 py-3.5">Submissions</th>
-                <th className="px-5 py-3.5">Pass Rate</th>
+                <th className="px-3 py-3.5 sm:px-5">Faculty Member</th>
+                <th className="px-3 py-3.5 sm:px-5">Courses</th>
+                <th className="px-3 py-3.5 sm:px-5">Exams</th>
+                <th className="px-3 py-3.5 sm:px-5">Submissions</th>
+                <th className="px-3 py-3.5 sm:px-5">Pass Rate</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-cream-200">
@@ -251,11 +254,11 @@ export default function AdminAnalyticsPage() {
               ) : (
                 teachers.map((t) => (
                   <tr key={t.teacher_id} className="hover:bg-cream-50/50">
-                    <td className="px-5 py-3.5 font-semibold text-green-900">{t.name}</td>
-                    <td className="px-5 py-3.5 text-ink-muted">{t.courses_count}</td>
-                    <td className="px-5 py-3.5 text-ink-muted">{t.exams_count}</td>
-                    <td className="px-5 py-3.5 text-ink-muted">{t.submissions_count}</td>
-                    <td className="px-5 py-3.5 font-bold text-green-700">{t.pass_rate}%</td>
+                    <td className="px-3 py-3.5 font-semibold text-green-900 sm:px-5">{t.name}</td>
+                    <td className="px-3 py-3.5 text-ink-muted sm:px-5">{t.courses_count}</td>
+                    <td className="px-3 py-3.5 text-ink-muted sm:px-5">{t.exams_count}</td>
+                    <td className="px-3 py-3.5 text-ink-muted sm:px-5">{t.submissions_count}</td>
+                    <td className="px-3 py-3.5 font-bold text-green-700 sm:px-5">{t.pass_rate}%</td>
                   </tr>
                 ))
               )}
@@ -263,15 +266,15 @@ export default function AdminAnalyticsPage() {
           </table>
         </div>
       ) : (
-        <div className="overflow-x-auto rounded-xl border border-cream-300 bg-white shadow-sm">
-          <table className="w-full min-w-[500px] text-left text-sm">
+        <div className="max-w-full overflow-x-auto rounded-xl border border-cream-300 bg-white shadow-sm">
+          <table className="w-full min-w-[600px] text-left text-sm">
             <thead className="bg-cream-100 text-xs font-semibold uppercase text-green-900">
               <tr>
-                <th className="px-5 py-3.5">Student</th>
-                <th className="px-5 py-3.5">Email</th>
-                <th className="px-5 py-3.5">Tasks Done</th>
-                <th className="px-5 py-3.5">Exams Taken</th>
-                <th className="px-5 py-3.5 text-right">Task Points</th>
+                <th className="px-3 py-3.5 sm:px-5">Student</th>
+                <th className="px-3 py-3.5 sm:px-5">Email</th>
+                <th className="px-3 py-3.5 sm:px-5">Tasks Done</th>
+                <th className="px-3 py-3.5 sm:px-5">Exams Taken</th>
+                <th className="px-3 py-3.5 text-right sm:px-5">Task Points</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-cream-200">
@@ -284,11 +287,11 @@ export default function AdminAnalyticsPage() {
               ) : (
                 students.map((s) => (
                   <tr key={s.student_id} className="hover:bg-cream-50/50">
-                    <td className="px-5 py-3.5 font-semibold text-green-900">{s.name}</td>
-                    <td className="px-5 py-3.5 text-xs text-ink-muted">{s.email}</td>
-                    <td className="px-5 py-3.5 text-ink-muted">{s.tasks_completed}</td>
-                    <td className="px-5 py-3.5 text-ink-muted">{s.exams_taken}</td>
-                    <td className="px-5 py-3.5 text-right font-heading font-bold text-green-900">
+                    <td className="px-3 py-3.5 font-semibold text-green-900 sm:px-5">{s.name}</td>
+                    <td className="px-3 py-3.5 text-xs text-ink-muted sm:px-5">{s.email}</td>
+                    <td className="px-3 py-3.5 text-ink-muted sm:px-5">{s.tasks_completed}</td>
+                    <td className="px-3 py-3.5 text-ink-muted sm:px-5">{s.exams_taken}</td>
+                    <td className="px-3 py-3.5 text-right font-heading font-bold text-green-900 sm:px-5">
                       {s.total_points} pts
                     </td>
                   </tr>

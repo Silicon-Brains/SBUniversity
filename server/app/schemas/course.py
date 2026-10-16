@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 from typing import Optional
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 from app.db.models.course import EnrollmentStatus
 
 
@@ -50,3 +50,16 @@ class EnrollmentResponse(BaseModel):
     progress_percent: float
     enrolled_at: datetime
     completed_at: Optional[datetime] = None
+
+
+class AdminCourseCreate(BaseModel):
+    code: str = Field(min_length=2, max_length=50)
+    title: str = Field(min_length=2, max_length=200)
+    description: Optional[str] = None
+    department_id: Optional[uuid.UUID] = None
+    is_published: bool = True
+    enroll_all_active_students: bool = True
+
+
+class AdminCourseResponse(CourseResponse):
+    enrolled_students: int = 0
