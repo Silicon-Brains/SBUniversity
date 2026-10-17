@@ -115,6 +115,9 @@
 - Use `next/image`, dynamic import for heavy client components (charts, chat).
 - Leaderboard served from Redis only.
 - Generate PDFs once and cache path; certificates are immutable.
+- Keep list/history responses bounded or paginated; compute summary totals independently of a limited history window.
+- Poll only for deltas where the API supports cursors; avoid repeatedly downloading full histories. Keep polling intervals appropriate to the UI's freshness needs and refresh on tab focus when available.
+- Measure query count, response size, and client work before optimizing; preserve ordering, snapshot/reset semantics, and response contracts.
 
 ## 17. Testing Rules
 - Backend: pytest + httpx; test services (grading, ranking, completion rule) and RBAC on every router.

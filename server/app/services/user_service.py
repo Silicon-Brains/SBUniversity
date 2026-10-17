@@ -2,9 +2,12 @@ import uuid
 from typing import Optional
 from fastapi import HTTPException, status
 import httpx
+from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import settings
 from app.core.logging import logger
+from app.db.models.audit import AuditLog
+from app.db.models.course import Course, CourseTeacher
 from app.db.models.user import StudentProfile, TeacherProfile, User, UserRole, UserStatus
 from app.repositories.audit_repository import AuditRepository
 from app.repositories.user_repository import UserRepository
@@ -60,6 +63,25 @@ class UserService:
         if not target_user:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
 
+        if target_user.role == UserRole.TEACHER and new_role != UserRole.TEACHER:
+            assigned_course = await self.db.scalar(
+                select(Course.id)
+                .where(
+                    or_(
+                        Course.teacher_id == target_user.id,
+                        Course.teacher_assignments.any(
+                            CourseTeacher.teacher_id == target_user.id
+                        ),
+                    )
+                )
+                .limit(1)
+            )
+            if assigned_course is not None:
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail="Reassign this teacher's courses before changing their role.",
+                )
+
         old_role = target_user.role
         target_user.role = new_role
 
@@ -111,3 +133,101 @@ class UserService:
         # Refresh ranking (removes from leaderboard if suspended/deleted, or restores if active)
         await self.ranking_service.refresh_student(target_user.id)
         return updated_user
+
+    async def delete_account(self, user_id: uuid.UUID, admin: User) -> None:
+        if admin.role != UserRole.ADMIN:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Only admins can delete user accounts.",
+            )
+        if user_id == admin.id:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="You cannot delete your own administrator account.",
+            )
+
+        target_user = await self.user_repo.get_by_id(user_id)
+        if target_user is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="User not found."
+            )
+        if target_user.role == UserRole.ADMIN and target_user.status == UserStatus.ACTIVE:
+            active_admins = await self.db.scalar(
+                select(func.count(User.id)).where(
+                    User.role == UserRole.ADMIN,
+                    User.status == UserStatus.ACTIVE,
+                )
+            )
+            if int(active_admins or 0) <= 1:
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail="The last active administrator account cannot be deleted.",
+                )
+
+        assigned_course = await self.db.scalar(
+            select(Course.id).where(
+                or_(
+                    Course.teacher_id == target_user.id,
+                    Course.teacher_assignments.any(
+                        CourseTeacher.teacher_id == target_user.id
+                    ),
+                )
+            ).limit(1)
+        ) if target_user.role == UserRole.TEACHER else None
+        if assigned_course is not None:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Reassign this teacher's courses before deleting the account.",
+            )
+
+        if not settings.CLERK_SECRET_KEY:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Account deletion is unavailable because identity-provider deletion is not configured.",
+            )
+
+        try:
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                response = await client.delete(
+                    f"https://api.clerk.com/v1/users/{target_user.clerk_user_id}",
+                    headers={
+                        "Authorization": f"Bearer {settings.CLERK_SECRET_KEY}"
+                    },
+                )
+        except httpx.RequestError as exc:
+            logger.error("Identity-provider account deletion request failed: %s", exc)
+            raise HTTPException(
+                status_code=status.HTTP_502_BAD_GATEWAY,
+                detail="Could not delete the account from the identity provider. No database records were removed.",
+            ) from exc
+
+        if response.status_code not in {200, 204, 404}:
+            logger.error(
+                "Identity-provider account deletion failed with status %d",
+                response.status_code,
+            )
+            raise HTTPException(
+                status_code=status.HTTP_502_BAD_GATEWAY,
+                detail="The identity provider did not delete the account. No database records were removed.",
+            )
+
+        self.db.add(
+            AuditLog(
+                actor_id=admin.id,
+                action="user.deleted",
+                entity_type="user",
+                entity_id=str(target_user.id),
+                metadata_={
+                    "email": target_user.email,
+                    "full_name": target_user.full_name,
+                    "role": target_user.role.value,
+                },
+            )
+        )
+        await self.db.delete(target_user)
+        try:
+            await self.db.commit()
+        except Exception:
+            await self.db.rollback()
+            logger.exception("Database account deletion failed for user %s", user_id)
+            raise

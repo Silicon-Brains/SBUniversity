@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { useAuth } from "@clerk/nextjs";
-import { BookOpen, Loader2, Plus, Users, X } from "lucide-react";
+import { BookOpen, Loader2, Pencil, Plus, Trash2, Users, X } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { useToast } from "@/components/ui/Toast";
@@ -12,12 +12,27 @@ interface AdminCourse {
   id: string;
   code: string;
   title: string;
+  teacher_id: string;
+  teacher_ids: string[];
+  student_ids: string[];
   description?: string | null;
   is_published: boolean;
   enrolled_students: number;
 }
 
 type CreateCourseResponse = AdminCourse;
+
+interface TeacherOption {
+  id: string;
+  full_name: string;
+  email: string;
+}
+
+interface StudentOption {
+  id: string;
+  full_name: string;
+  email: string;
+}
 
 function defaultCourseCode() {
   return `OU-${new Date().getFullYear()}-01`;
@@ -27,14 +42,23 @@ export function AdminCourses() {
   const { getToken } = useAuth();
   const toast = useToast();
   const [courses, setCourses] = useState<AdminCourse[]>([]);
+  const [teachers, setTeachers] = useState<TeacherOption[]>([]);
+  const [students, setStudents] = useState<StudentOption[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [isOpen, setIsOpen] = useState(false);
+  const [editingCourse, setEditingCourse] = useState<AdminCourse | null>(null);
+  const [deletingCourse, setDeletingCourse] = useState<AdminCourse | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [code, setCode] = useState(defaultCourseCode);
   const [title, setTitle] = useState("OpenUniversity Course");
   const [description, setDescription] = useState("");
   const [enrollAll, setEnrollAll] = useState(true);
+  const [isPublished, setIsPublished] = useState(true);
+  const [teacherIds, setTeacherIds] = useState<string[]>([]);
+  const [studentIds, setStudentIds] = useState<string[]>([]);
+  const [studentSearch, setStudentSearch] = useState("");
 
   const resolveToken = useCallback(async () => {
     let token = await getToken();
@@ -49,7 +73,15 @@ export function AdminCourses() {
     setLoadError(null);
     try {
       const token = await resolveToken();
-      setCourses(await api<AdminCourse[]>("/admin/courses", token ?? undefined));
+      const [loadedCourses, loadedTeachers, loadedStudents] = await Promise.all([
+        api<AdminCourse[]>("/admin/courses", token ?? undefined),
+        api<TeacherOption[]>("/admin/courses/teachers", token ?? undefined),
+        api<StudentOption[]>("/admin/courses/students", token ?? undefined),
+      ]);
+      setCourses(loadedCourses);
+      setTeachers(loadedTeachers);
+      setStudents(loadedStudents);
+      setTeacherIds((current) => current.length ? current : loadedTeachers[0] ? [loadedTeachers[0].id] : []);
     } catch (error) {
       setLoadError(error instanceof Error ? error.message : "Failed to load courses.");
     } finally {
@@ -61,42 +93,95 @@ export function AdminCourses() {
     void loadCourses();
   }, [loadCourses]);
 
-  async function createCourse(event: FormEvent<HTMLFormElement>) {
+  function openCreateForm() {
+    setEditingCourse(null);
+    setCode(defaultCourseCode());
+    setTitle("OpenUniversity Course");
+    setDescription("");
+    setEnrollAll(true);
+    setIsPublished(true);
+    setTeacherIds(teachers[0] ? [teachers[0].id] : []);
+    setStudentIds([]);
+    setStudentSearch("");
+    setLoadError(null);
+    setIsOpen(true);
+  }
+
+  function openEditForm(course: AdminCourse) {
+    setEditingCourse(course);
+    setCode(course.code);
+    setTitle(course.title);
+    setDescription(course.description ?? "");
+    const assignedTeachers = course.teacher_ids.filter((id) => teachers.some((teacher) => teacher.id === id));
+    setTeacherIds(assignedTeachers.length ? assignedTeachers : teachers[0] ? [teachers[0].id] : []);
+    setStudentIds([]);
+    setIsPublished(course.is_published);
+    setEnrollAll(false);
+    setStudentSearch("");
+    setLoadError(null);
+    setIsOpen(true);
+  }
+
+  async function saveCourse(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setIsSaving(true);
     setLoadError(null);
     try {
       const token = await resolveToken();
-      const created = await api<CreateCourseResponse>("/admin/courses", token ?? undefined, {
-        method: "POST",
-        body: JSON.stringify({
-          code: code.trim(),
-          title: title.trim(),
-          description: description.trim() || undefined,
-          is_published: true,
-          enroll_all_active_students: enrollAll,
-        }),
-      });
-      setCourses((current) => [created, ...current]);
-      toast(
-        `Created ${created.title} and enrolled ${created.enrolled_students} active student${created.enrolled_students === 1 ? "" : "s"}.`
+      const payload = {
+        code: code.trim(),
+        title: title.trim(),
+        description: description.trim() || null,
+        teacher_ids: teacherIds,
+        student_ids: studentIds,
+        is_published: isPublished,
+        enroll_all_active_students: enrollAll,
+      };
+      const saved = await api<CreateCourseResponse>(
+        editingCourse ? `/admin/courses/${editingCourse.id}` : "/admin/courses",
+        token ?? undefined,
+        {
+          method: editingCourse ? "PATCH" : "POST",
+          body: JSON.stringify(payload),
+        },
       );
+      setCourses((current) => editingCourse
+        ? current.map((course) => course.id === saved.id ? saved : course)
+        : [saved, ...current]);
+      toast(editingCourse
+        ? `Updated ${saved.title}.`
+        : `Created ${saved.title} and enrolled ${saved.enrolled_students} active student${saved.enrolled_students === 1 ? "" : "s"}.`);
       setIsOpen(false);
-      setCode(defaultCourseCode());
-      setTitle("OpenUniversity Course");
-      setDescription("");
-      setEnrollAll(true);
     } catch (error) {
-      setLoadError(error instanceof Error ? error.message : "Failed to create course.");
+      setLoadError(error instanceof Error ? error.message : "Failed to save course.");
     } finally {
       setIsSaving(false);
+    }
+  }
+
+  async function deleteCourse(course: AdminCourse) {
+    setIsDeleting(true);
+    try {
+      const token = await resolveToken();
+      await api(`/admin/courses/${course.id}`, token ?? undefined, { method: "DELETE" });
+      setCourses((current) => current.filter((item) => item.id !== course.id));
+      if (editingCourse?.id === course.id) {
+        setEditingCourse(null);
+        setIsOpen(false);
+      }
+      toast(`Permanently deleted ${course.title} and its related course records.`);
+      setDeletingCourse(null);
+    } catch (error) {
+      toast(error instanceof Error ? error.message : "Failed to delete course.");
+    } finally {
+      setIsDeleting(false);
     }
   }
 
   return (
     <>
       <div className="mb-6 flex justify-end">
-        <Button variant="primary" className="w-full justify-center sm:w-auto" onClick={() => setIsOpen(true)}>
+        <Button variant="primary" className="w-full justify-center sm:w-auto" onClick={openCreateForm}>
           <Plus size={16} /> Create OpenUniversity Course
         </Button>
       </div>
@@ -142,6 +227,23 @@ export function AdminCourses() {
                 <Users size={16} className="text-green-700" />
                 <span className="break-words">{course.enrolled_students} active student{course.enrolled_students === 1 ? "" : "s"} enrolled</span>
               </div>
+              <div className="mt-4 border-t border-cream-200 pt-4">
+                <p className="text-xs font-semibold text-green-900">Assigned teachers</p>
+                <p className="mt-1 text-sm text-ink-muted">
+                  {(course.teacher_ids.length ? course.teacher_ids : [course.teacher_id])
+                    .map((id) => teachers.find((teacher) => teacher.id === id)?.full_name)
+                    .filter(Boolean)
+                    .join(", ") || "Teacher account unavailable"}
+                </p>
+                <div className="mt-3 flex gap-2">
+                  <Button size="sm" variant="secondary" className="min-h-10 flex-1 justify-center gap-1.5" onClick={() => openEditForm(course)}>
+                    <Pencil size={14} /> Edit
+                  </Button>
+                  <Button size="sm" variant="danger" className="min-h-10 flex-1 justify-center gap-1.5" onClick={() => setDeletingCourse(course)}>
+                    <Trash2 size={14} /> Delete
+                  </Button>
+                </div>
+              </div>
             </Card>
           ))}
         </div>
@@ -162,16 +264,16 @@ export function AdminCourses() {
           <div
             role="dialog"
             aria-modal="true"
-            aria-labelledby="create-course-title"
+            aria-labelledby="course-form-title"
             className="relative my-auto max-h-[calc(100dvh-1.5rem)] w-full max-w-xl overflow-y-auto rounded-2xl border border-cream-300 bg-white p-4 shadow-2xl sm:max-h-[calc(100dvh-2rem)] sm:p-6"
           >
             <div className="mb-5 flex items-start justify-between border-b border-cream-200 pb-3">
               <div>
-                <h2 id="create-course-title" className="font-heading text-xl font-bold text-green-900">
-                  Create OpenUniversity Course
+                <h2 id="course-form-title" className="font-heading text-xl font-bold text-green-900">
+                  {editingCourse ? "Update course" : "Create OpenUniversity Course"}
                 </h2>
                 <p className="mt-1 text-sm text-ink-muted">
-                  The course is published and available to its enrolled students.
+                  Set the course details, assign teachers, and enroll students.
                 </p>
               </div>
               <button
@@ -184,7 +286,25 @@ export function AdminCourses() {
               </button>
             </div>
 
-            <form onSubmit={createCourse} className="space-y-4">
+            <form onSubmit={saveCourse} className="space-y-4">
+              <fieldset className="rounded-xl border border-cream-300 p-3">
+                <legend className="px-1 text-sm font-semibold text-green-900">Assign teachers</legend>
+                <div className="max-h-36 space-y-1 overflow-y-auto">
+                  {teachers.map((teacher) => (
+                    <label key={teacher.id} className="flex min-h-10 items-center gap-2 rounded-lg px-2 text-sm text-ink hover:bg-cream-50">
+                      <input
+                        type="checkbox"
+                        checked={teacherIds.includes(teacher.id)}
+                        onChange={() => setTeacherIds((current) => current.includes(teacher.id)
+                          ? current.filter((id) => id !== teacher.id)
+                          : [...current, teacher.id])}
+                      />
+                      <span className="min-w-0 truncate">{teacher.full_name} · {teacher.email}</span>
+                    </label>
+                  ))}
+                  {teachers.length === 0 && <p className="p-2 text-xs text-danger">Create or activate a teacher account before assigning this course.</p>}
+                </div>
+              </fieldset>
               <div className="grid gap-4 sm:grid-cols-2">
                 <label className="block text-sm font-semibold text-green-900">
                   Course code
@@ -222,6 +342,51 @@ export function AdminCourses() {
               <label className="flex items-start gap-3 rounded-xl border border-cream-300 p-4 text-sm text-ink">
                 <input
                   type="checkbox"
+                  checked={isPublished}
+                  onChange={(event) => setIsPublished(event.target.checked)}
+                  className="mt-0.5"
+                />
+                <span>
+                  <span className="block font-semibold text-green-900">Publish course</span>
+                  <span className="mt-1 block text-xs text-ink-muted">Published courses are available to enrolled students.</span>
+                </span>
+              </label>
+              <fieldset className="rounded-xl border border-cream-300 p-3">
+                <legend className="px-1 text-sm font-semibold text-green-900">Add students</legend>
+                {editingCourse && (
+                  <p className="mb-2 text-xs text-ink-muted">
+                    {editingCourse.enrolled_students} students are currently enrolled. Existing enrollments are retained; selected students are added.
+                  </p>
+                )}
+                <input
+                  type="search"
+                  value={studentSearch}
+                  onChange={(event) => setStudentSearch(event.target.value)}
+                  placeholder="Search students"
+                  aria-label="Search students to enroll"
+                  className="h-10 w-full rounded-lg border border-cream-300 px-3 text-sm"
+                />
+                <div className="mt-2 max-h-44 space-y-1 overflow-y-auto">
+                  {students
+                    .filter((student) => `${student.full_name} ${student.email}`.toLowerCase().includes(studentSearch.toLowerCase()))
+                    .map((student) => (
+                      <label key={student.id} className="flex min-h-10 items-center gap-2 rounded-lg px-2 text-sm text-ink hover:bg-cream-50">
+                        <input
+                          type="checkbox"
+                          checked={studentIds.includes(student.id)}
+                          onChange={() => setStudentIds((current) => current.includes(student.id)
+                            ? current.filter((id) => id !== student.id)
+                            : [...current, student.id])}
+                        />
+                        <span className="min-w-0 truncate">{student.full_name} · {student.email}</span>
+                      </label>
+                    ))}
+                  {students.length === 0 && <p className="p-2 text-xs text-ink-muted">No active students available.</p>}
+                </div>
+              </fieldset>
+              <label className="flex items-start gap-3 rounded-xl border border-cream-300 p-4 text-sm text-ink">
+                <input
+                  type="checkbox"
                   checked={enrollAll}
                   onChange={(event) => setEnrollAll(event.target.checked)}
                   className="mt-0.5"
@@ -229,7 +394,9 @@ export function AdminCourses() {
                 <span>
                   <span className="block font-semibold text-green-900">Enroll all active students</span>
                   <span className="mt-1 block text-xs text-ink-muted">
-                    Selected by default. Every active student in the database will be enrolled when this course is created.
+                    {editingCourse
+                      ? "Enroll every active student in addition to the specifically selected students. Existing enrollments are retained."
+                      : "Selected by default. Clear this to enroll only the specifically selected students."}
                   </span>
                 </span>
               </label>
@@ -238,12 +405,35 @@ export function AdminCourses() {
                 <Button type="button" variant="secondary" size="sm" className="w-full justify-center sm:w-auto" onClick={() => setIsOpen(false)}>
                   Cancel
                 </Button>
-                <Button type="submit" variant="primary" size="sm" className="w-full justify-center sm:w-auto" disabled={isSaving}>
-                  {isSaving ? <Loader2 size={15} className="animate-spin" /> : <Plus size={15} />}
-                  Create and enroll
+                <Button type="submit" variant="primary" size="sm" className="w-full justify-center sm:w-auto" disabled={isSaving || teachers.length === 0 || teacherIds.length === 0}>
+                  {isSaving ? <Loader2 size={15} className="animate-spin" /> : editingCourse ? <Pencil size={15} /> : <Plus size={15} />}
+                  {editingCourse ? "Save changes" : "Create and enroll"}
                 </Button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+      {deletingCourse && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+          <button
+            type="button"
+            aria-label="Cancel course deletion"
+            className="absolute inset-0 bg-green-900/50 backdrop-blur-sm"
+            onClick={() => setDeletingCourse(null)}
+          />
+          <div role="alertdialog" aria-modal="true" aria-labelledby="delete-course-title" className="relative w-full max-w-md rounded-2xl border border-cream-300 bg-white p-5 shadow-2xl">
+            <h2 id="delete-course-title" className="font-heading text-lg font-bold text-danger">Permanently delete course?</h2>
+            <p className="mt-2 text-sm text-ink-muted">
+              Deleting <strong>{deletingCourse.title}</strong> also removes its exams, attempts, results, tasks, enrollments, certificates, notices, and live classroom data. This cannot be undone.
+            </p>
+            <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+              <Button variant="secondary" size="sm" className="justify-center" onClick={() => setDeletingCourse(null)} disabled={isDeleting}>Cancel</Button>
+              <Button variant="danger" size="sm" className="justify-center" onClick={() => void deleteCourse(deletingCourse)} disabled={isDeleting}>
+                {isDeleting ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
+                Delete course and records
+              </Button>
+            </div>
           </div>
         </div>
       )}

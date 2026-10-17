@@ -45,7 +45,7 @@ class TaskResponse(BaseModel):
     id: uuid.UUID
     course_id: uuid.UUID
     course_title: Optional[str] = None
-    created_by: uuid.UUID
+    created_by: Optional[uuid.UUID] = None
     type: TaskType
     exam_id: Optional[uuid.UUID] = None
     title: str

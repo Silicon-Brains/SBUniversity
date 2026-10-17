@@ -360,8 +360,8 @@ export function CommunityChat({ role }: { role: "student" | "teacher" | "admin" 
                   />
                 </label>
                 {(studentSearch || students.length > 0) && (
-                  <div className="mt-2 max-h-40 space-y-1 overflow-y-auto">
-                    {students.slice(0, 8).map((student) => (
+                  <div className="mt-2 max-h-[calc(100dvh-18rem)] space-y-1 overflow-y-auto">
+                    {students.map((student) => (
                       <button
                         type="button"
                         key={student.id}

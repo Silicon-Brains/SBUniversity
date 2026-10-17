@@ -1,6 +1,7 @@
 "use client";
 import React, { useState, useRef, useEffect } from "react";
-import { Bot, Send, Sparkles, ShieldAlert, BookOpen, Trophy, Award, RefreshCw, CheckCircle2 } from "lucide-react";
+import Image from "next/image";
+import { Send, Sparkles, ShieldAlert, BookOpen, Trophy, Award, RefreshCw, CheckCircle2 } from "lucide-react";
 import { PageHeader, Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 
@@ -150,9 +151,15 @@ export default function AssistantPage() {
         {/* Chat Header */}
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-cream-300 bg-green-700 px-4 py-3 text-cream-50 sm:px-6 sm:py-4">
           <div className="flex min-w-0 items-center gap-3">
-            <span className="grid h-10 w-10 place-items-center rounded-lg bg-cream-200 text-green-900">
-              <Bot size={22} />
-            </span>
+            <Image
+              src="/aarsh-ai-orb.gif"
+              alt=""
+              aria-hidden="true"
+              width={48}
+              height={48}
+              unoptimized
+              className="h-12 w-12 shrink-0 rounded-full object-contain mix-blend-screen"
+            />
             <div className="min-w-0">
               <h2 className="break-words font-heading text-sm font-bold !text-cream-50 sm:text-base">Aarsh Intelligence Workspace</h2>
               <p className="text-xs text-cream-200">Interactive Academic Assistant</p>
@@ -186,7 +193,15 @@ export default function AssistantPage() {
 
           {isTyping && (
             <div className="flex items-center gap-2 rounded-2xl border border-cream-300 bg-white px-4 py-3 text-xs text-ink-muted">
-              <Sparkles size={16} className="text-bordo-700 animate-spin" />
+              <Image
+                src="/aarsh-ai-orb.gif"
+                alt=""
+                aria-hidden="true"
+                width={32}
+                height={32}
+                unoptimized
+                className="h-8 w-8 shrink-0 rounded-full object-contain mix-blend-screen"
+              />
               <span>Aarsh Intelligence is synthesizing guidance...</span>
             </div>
           )}

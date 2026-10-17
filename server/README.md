@@ -1,6 +1,6 @@
 # SBUniversity Backend (FastAPI + Supabase + Redis)
 
-Production-ready backend API for the **SBUniversity** platform.
+Backend API for the **SBUniversity** platform.
 
 ---
 
@@ -13,6 +13,8 @@ Production-ready backend API for the **SBUniversity** platform.
 - **Webhooks:** Clerk Webhook synchronization with Svix signature verification
 - **Document Generation:** Backend ReportLab PDF engine (official Result statements & Certificates with QR codes)
 - **AI Assistant:** Aarsh Intelligence (Google Gemini) with anti-cheat live exam guardrails
+- **Live classroom:** Course-scoped whiteboard sessions, persisted strokes, and expiring class chat
+- **Admin controls:** Course CRUD, multiple course teachers, selected student enrollment, and permanent account deletion
 - **Security:** RLS enabled across all Supabase tables, parameterized queries, strict role gating
 
 ---
@@ -101,16 +103,21 @@ Fill in your connection details:
 
 ### 2. Supabase Migration
 
-Apply `server/supabase_migration.sql` directly in your Supabase SQL Editor:
+#### New database bootstrap
+
+For a new Supabase database only, apply the full `supabase_migration.sql` bootstrap in the SQL Editor:
 1. Open the Supabase Dashboard -> **SQL Editor**.
 2. Paste the contents of `supabase_migration.sql`.
 3. Click **Run**.
-4. All tables, custom ENUMs, partial unique indexes, triggers, and defense-in-depth RLS policies are created automatically.
+4. The bootstrap creates the tables, custom ENUMs, indexes, triggers, and RLS policies.
 
-Alternatively, run Alembic migrations:
+#### Existing database
+
+Use Alembic (recommended) to apply versioned changes. Do not rerun the full bootstrap over an initialized production database. Alternatively, apply only the matching update section at the end of `supabase_migration.sql`.
 ```bash
 alembic upgrade head
 ```
+The current head is `011_admin_course_management`. New deployments should use Alembic migrations to keep schema history aligned.
 
 ### 3. Seed Sample Data (Development/Staging)
 
@@ -162,6 +169,15 @@ docker-compose up --build
    - When a student passes all published exams of a course, a Certificate is automatically issued with a unique code (e.g., `SBU-CERT-7F3K9Q2M`).
    - Official ReportLab PDFs generated server-side using the institutional brand palette (Bordo `#6C151E`, Green `#0F3D3A`, Cream `#F5DABF`).
    - Public QR verification at `/api/v1/public/verify/certificate/{code}` and `/api/v1/public/verify/student/{qr_token}`.
+
+4. **Admin course and account control:**
+   - Admins can create, update, and permanently delete courses; assign several teachers; and enroll selected or all active students.
+   - Permanent account deletion removes the Clerk identity before deleting the database user. `CLERK_SECRET_KEY` is required; the API refuses to remove the database account if identity-provider deletion fails.
+   - Assigned teachers, the current admin, and the last active admin are protected from unsafe deletion/demotion.
+
+5. **Live classroom:**
+   - Assigned teachers/admins manage course sessions; enrolled students join to view and chat.
+   - Chat expires after ten minutes; board strokes are retained with the session.
 
 ---
 

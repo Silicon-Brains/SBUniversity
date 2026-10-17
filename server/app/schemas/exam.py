@@ -72,7 +72,7 @@ class ExamResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: uuid.UUID
     course_id: uuid.UUID
-    created_by: uuid.UUID
+    created_by: Optional[uuid.UUID] = None
     title: str
     instructions: Optional[str] = None
     duration_minutes: int

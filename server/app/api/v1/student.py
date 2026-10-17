@@ -123,9 +123,20 @@ async def get_student_dashboard(
         .limit(6)
     )
     tasks_res = await db.execute(tasks_stmt)
-    for t in tasks_res.scalars().all():
-        comp_stmt = select(TaskCompletion).where(TaskCompletion.task_id == t.id, TaskCompletion.student_id == current_user.id)
-        comp = (await db.execute(comp_stmt)).scalar_one_or_none()
+    tasks = list(tasks_res.scalars().all())
+    completions_by_task_id = {}
+    if tasks:
+        completions_stmt = select(TaskCompletion).where(
+            TaskCompletion.task_id.in_([task.id for task in tasks]),
+            TaskCompletion.student_id == current_user.id,
+        )
+        completions_res = await db.execute(completions_stmt)
+        completions_by_task_id = {
+            completion.task_id: completion for completion in completions_res.scalars().all()
+        }
+
+    for t in tasks:
+        comp = completions_by_task_id.get(t.id)
         my_status = comp.status.value if comp else "open"
         open_tasks.append({
             "id": str(t.id),

@@ -79,7 +79,9 @@ class ExamService:
         course = await self.course_repo.get_by_id(data.course_id)
         if not course:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Course not found")
-        if creator.role == UserRole.TEACHER and course.teacher_id != creator.id:
+        if creator.role == UserRole.TEACHER and not await self.course_repo.is_teacher_assigned(
+            course.id, creator.id
+        ):
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Cannot create exams for another teacher's course")
 
         if data.end_at <= data.start_at:
@@ -111,7 +113,9 @@ class ExamService:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Cannot edit a closed exam")
 
         course = await self.course_repo.get_by_id(exam.course_id)
-        if user.role == UserRole.TEACHER and course and course.teacher_id != user.id:
+        if user.role == UserRole.TEACHER and course and not await self.course_repo.is_teacher_assigned(
+            course.id, user.id
+        ):
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Cannot edit exams for another teacher's course")
 
         for field, val in data.model_dump(exclude_unset=True).items():
@@ -130,7 +134,9 @@ class ExamService:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Questions can only be added to draft exams")
 
         course = await self.course_repo.get_by_id(exam.course_id)
-        if user.role == UserRole.TEACHER and course and course.teacher_id != user.id:
+        if user.role == UserRole.TEACHER and course and not await self.course_repo.is_teacher_assigned(
+            course.id, user.id
+        ):
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
 
         # Validate exactly one correct option
@@ -174,7 +180,9 @@ class ExamService:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Exam not found")
 
         course = await self.course_repo.get_by_id(exam.course_id)
-        if user.role == UserRole.TEACHER and course and course.teacher_id != user.id:
+        if user.role == UserRole.TEACHER and course and not await self.course_repo.is_teacher_assigned(
+            course.id, user.id
+        ):
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
 
         if not exam.questions:
@@ -215,7 +223,9 @@ class ExamService:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Only published exams can be closed")
 
         course = await self.course_repo.get_by_id(exam.course_id)
-        if user.role == UserRole.TEACHER and course and course.teacher_id != user.id:
+        if user.role == UserRole.TEACHER and course and not await self.course_repo.is_teacher_assigned(
+            course.id, user.id
+        ):
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
 
         exam.status = ExamStatus.CLOSED
@@ -479,7 +489,9 @@ class ExamService:
         # Security check: student can only view own, teacher of course, or admin
         if user.role == UserRole.STUDENT and result.student_id != user.id:
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
-        if user.role == UserRole.TEACHER and result.exam.course.teacher_id != user.id:
+        if user.role == UserRole.TEACHER and not await self.course_repo.is_teacher_assigned(
+            result.exam.course_id, user.id
+        ):
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
 
         if result.pdf_path:

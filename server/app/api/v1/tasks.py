@@ -1,10 +1,10 @@
 import uuid
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.deps import get_current_user, require_role
-from app.db.models.course import Course, Enrollment, EnrollmentStatus
+from app.db.models.course import Course, CourseTeacher, Enrollment, EnrollmentStatus
 from app.db.models.task import CompletionStatus, Task, TaskCompletion, TaskStatus
 from app.db.models.user import User, UserRole
 from app.db.session import get_db
@@ -68,7 +68,14 @@ async def list_tasks(
 
     elif current_user.role == UserRole.TEACHER:
         # Show tasks created by this teacher, including cross-course assignments.
-        courses_stmt = select(Course.id).where(Course.teacher_id == current_user.id)
+        courses_stmt = select(Course.id).where(
+            or_(
+                Course.teacher_id == current_user.id,
+                Course.teacher_assignments.any(
+                    CourseTeacher.teacher_id == current_user.id
+                ),
+            )
+        )
         teacher_c_ids = (await db.execute(courses_stmt)).scalars().all()
         tasks, _ = await repo.list_tasks(course_id=course_id)
         filtered_tasks = [
@@ -100,7 +107,14 @@ async def list_pending_reviews(
     repo = TaskRepository(db)
     course_ids = None
     if current_user.role == UserRole.TEACHER:
-        courses_stmt = select(Course.id).where(Course.teacher_id == current_user.id)
+        courses_stmt = select(Course.id).where(
+            or_(
+                Course.teacher_id == current_user.id,
+                Course.teacher_assignments.any(
+                    CourseTeacher.teacher_id == current_user.id
+                ),
+            )
+        )
         course_ids = list((await db.execute(courses_stmt)).scalars().all())
         completions = await repo.list_pending_reviews(
             course_ids=course_ids,

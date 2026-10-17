@@ -1,72 +1,54 @@
-# memory.md — SBUniversity Project Memory / Current State
+# SBUniversity Project Memory / Current State
 
-> Update this file after every meaningful change.
+> Update this file after meaningful project changes.
 
-## Current Phase
-**Phase 0 — Documentation Foundation** (complete pending owner confirmation of assumptions)
+## Current Status
+- **Current focus:** Phase 14 — Optimization and documentation synchronization.
+- **Deployment:** Not verified. Do not assume production services, secrets, or migrations have been configured.
+- **Backend:** FastAPI, Python 3.13, SQLAlchemy async, PostgreSQL/Supabase, Redis.
+- **Frontend:** Next.js App Router, TypeScript strict, Tailwind CSS.
+- **Authentication:** Clerk; roles are student, teacher, and admin.
+- **AI:** Aarsh Intelligence, backed by Google Gemini.
+- **Live ranking:** Task Points, Redis sorted sets, server updates and SSE.
+- **Design:** Bordo `#6C151E`, Green `#0F3D3A`, Cream `#F5DABF`.
 
-## Current Task
-Review documentation and confirm assumptions A1–A11 (PRD.md §17), especially the Task Points model (A3, A9–A11).
+## Implemented Feature Areas
+- Student/teacher workflows for courses, exams, tasks, results, certificates, and notices.
+- Admin user controls and course CRUD, multi-teacher assignment, and selected/all-active-student enrollment.
+- Permanent account deletion removes the Clerk identity first and then the database account; authored teaching content is retained with a null author reference. This requires `CLERK_SECRET_KEY`.
+- Course-scoped live whiteboard with teacher controls, explicit student join, retained strokes, and chat messages expiring after ten minutes.
+- Aarsh Intelligence page and floating launcher/panel share the animated orb; the site favicon is `web/src/app/icon.svg`.
 
-## Project Snapshot
-- **Name:** SBUniversity
-- **Frontend:** Next.js (App Router, TS) + Tailwind CSS
-- **Backend:** FastAPI, Python 3.13 (interpreted from "python13.3")
-- **DB:** Supabase PostgreSQL (backend-only access)
-- **Auth:** Clerk — roles: student, teacher, admin
-- **AI:** Google Gemini → chatbot "Aarsh Intelligence"
-- **Cache/Realtime:** Redis (cache, leaderboard, rate-limit, pub/sub)
-- **PDFs:** Generated in backend (ReportLab); downloaded in frontend as Blob
-- **Brand colors:** Bordo `#6C151E`, Green `#0F3D3A`, Cream `#F5DABF` (60:30:10)
-- **Live Ranking:** by **Task Points**, auto-awarded on task completion (Redis ZSET + SSE)
+## Recent Optimization
+- Live whiteboard chat polling was reduced from every 4 seconds to every 5 seconds (20% fewer periodic requests) while keeping the added worst-case freshness delay to about one second. Focus/visibility refresh remains enabled. Stroke merge and snapshot semantics were not changed.
+- Student dashboard task completion statuses are now loaded with one query for the selected task IDs, instead of one sequential completion query per task. A regression test covers statuses and query count.
+- Remaining profiling items: bulk teacher analytics aggregation, bound or paginate task-completion history, and measure API p95/query counts.
 
-## Completed
-- [x] PRD.md
-- [x] architecture.md
-- [x] database.md
-- [x] rules.md
-- [x] phases.md
-- [x] design.md
-- [x] memory.md
-- [x] System_Design.md
+## Database
+- Schema changes are managed through Alembic; current migration head is `011_admin_course_management`.
+- For new databases, the full Supabase bootstrap is `server/supabase_migration.sql`. For existing databases, prefer `alembic upgrade head` or use only the matching update section, never rerun the whole bootstrap indiscriminately.
+- The schema reference is `Docs/database.md`.
 
-## Completed Files
-All 8 docs in `SBUniversity-docs/`.
-
-## Files Currently Being Modified
-None.
-
-## Pending
-- [ ] Owner confirms assumptions (A1–A11) incl. Task Points model
-- [ ] Create Clerk, Supabase, Redis, Gemini accounts/keys
-- [ ] Start Phase 1 — Project Setup
-
-## Known Bugs
-None (no code yet).
-
-## Current Errors
-None.
+## Validation Status
+- Previous implementation validation: backend suite passed (38 tests), frontend typecheck and production build passed, and the migration chain/offline SQL generation passed.
+- This optimization turn must rerun frontend typecheck/build and verify the chat interval change.
+- Do not treat production p95, scalability targets, a complete accessibility audit, or deployment as verified.
 
 ## Important Decisions
-| # | Decision | Date |
-|---|---|---|
-| D1 | Modular monolith FastAPI; browser never talks to Supabase directly | Oct 14, 2026 |
-| D2 | Role stored in Clerk publicMetadata + mirrored in DB; admin-only role changes | Oct 14, 2026 |
-| D3 | Course progress = % published exams passed; certificate at 100% (no lessons in MVP) | Oct 14, 2026 |
-| D4 | ~~Ranking by exam marks~~ **superseded by D8** — Redis ZSET + SSE for live remain | Oct 14, 2026 |
-| D5 | ReportLab for PDF generation in backend | Oct 14, 2026 |
-| D6 | Gemini model name configurable via `GEMINI_MODEL` env | Oct 14, 2026 |
-| D8 | Live Ranking = total **Task Points** (all-time). Exam tasks auto-created on exam publish and auto-complete on pass; assignment tasks need teacher approval; points awarded once per (task, student) in the same DB transaction; tie-break = earliest to reach total; exam marks don't affect rank | Oct 14, 2026 |
-| D9 | Leaderboard score recomputed from DB and set absolutely in Redis (no ZINCRBY); revoke instead of delete | Oct 14, 2026 |
-| D7 | Palette 60% Cream+White / 30% Green / 10% Bordo; bordo never on green; functional colors are minimal exceptions | Oct 14, 2026 |
+| Decision | Detail |
+|---|---|
+| Backend-only data access | Browser does not access Supabase directly; API enforces authorization and ownership. |
+| Permanent course deletion | Deletes the course and its related records after confirmation. |
+| Permanent account deletion | Delete Clerk identity before database user; fail without deleting DB if provider deletion fails. |
+| Teacher protection | A teacher assigned to a course cannot be demoted or deleted until reassigned. |
+| Multiple course teachers | `course_teachers` is authoritative for additional assignments; `courses.teacher_id` remains primary for compatibility. |
+| Whiteboard history | Strokes remain for session history; live class chat expires after ten minutes. |
 
 ## Recent Changes
-- Oct 14, 2026: Initial documentation set created.
-- Oct 14, 2026: **Color palette changed** from blue/indigo/gold to **Bordo `#6C151E` / Green `#0F3D3A` / Cream `#F5DABF`** using the 60:30:10 rule (white as neutral). Updated `design.md` (v0.2), `rules.md` (§19), `phases.md` (Phase 2, 13). No architecture/DB changes.
-- Oct 14, 2026: **Ranking model changed** from exam marks to **Task Points** (automated on task completion). New tables `tasks`, `task_completions`; new endpoints `/tasks/*`, `/student/points`, admin revoke; new pages `/student/tasks`, `/teacher/tasks`; ranking flow, rules (§20), phases (6, 7, 10, 12) and design (Ranking, Task card) updated. Docs updated: PRD, architecture, database, rules, phases, design, memory, System_Design.
+- 2026-10-18: Added admin course CRUD, teacher/student assignments, permanent account deletion safeguards, schema migration `011_admin_course_management`, and project documentation.
+- 2026-10-18: Reduced live whiteboard chat polling from four seconds to five seconds and batched student dashboard completion lookups; synchronized product, architecture, design, database, setup, and roadmap documentation.
 
-## Next Task
-Confirm assumptions → begin **Phase 1 — Project Setup** (create both repos, configs, CI).
-
-## Deployment Status
-Not deployed. No environments created yet.
+## Remaining Work
+- Verify frontend checks after optimization; review any warnings separately from errors.
+- Bulk teacher analytics aggregation and paginated task-completion history; add query-count/pagination regression tests.
+- Complete load/security/accessibility acceptance, external-service configuration, deployment, monitoring, and backup/restore verification before production.

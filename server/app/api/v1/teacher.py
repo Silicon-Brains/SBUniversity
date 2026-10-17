@@ -1,17 +1,18 @@
 import uuid
 from typing import Any, Dict, List
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 from app.core.deps import get_current_user, require_role
-from app.db.models.course import Course, Enrollment, EnrollmentStatus
+from app.db.models.course import Course, CourseTeacher, Enrollment, EnrollmentStatus
 from app.db.models.exam import Exam, ExamStatus
 from app.db.models.notice import Notice, NoticeStatus
 from app.db.models.result import Result
 from app.db.models.task import CompletionStatus, Task, TaskCompletion
 from app.db.models.user import User, UserRole, UserStatus
 from app.db.session import get_db
+from app.repositories.course_repository import CourseRepository
 from app.schemas.result import ResultResponse
 from app.schemas.task import TeacherTaskCourseOption, TeacherTaskStudentOption
 
@@ -24,7 +25,14 @@ async def get_teacher_dashboard(
     db: AsyncSession = Depends(get_db),
 ) -> Dict[str, Any]:
     # Courses taught by this teacher
-    courses_stmt = select(Course).where(Course.teacher_id == current_user.id)
+    courses_stmt = select(Course).where(
+        or_(
+            Course.teacher_id == current_user.id,
+            Course.teacher_assignments.any(
+                CourseTeacher.teacher_id == current_user.id
+            ),
+        )
+    )
     courses_res = await db.execute(courses_stmt)
     courses = list(courses_res.scalars().all())
     course_ids = [c.id for c in courses]
@@ -168,7 +176,9 @@ async def get_course_results(
     if not course:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Course not found")
 
-    if current_user.role == UserRole.TEACHER and course.teacher_id != current_user.id:
+    if current_user.role == UserRole.TEACHER and not await CourseRepository(db).is_teacher_assigned(
+        course.id, current_user.id
+    ):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
 
     results_stmt = (

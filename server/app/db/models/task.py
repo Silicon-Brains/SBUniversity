@@ -69,7 +69,7 @@ class Task(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     )
 
     course_id: Mapped[uuid.UUID] = mapped_column(Uuid, ForeignKey("courses.id", ondelete="CASCADE"), nullable=False, index=True)
-    created_by: Mapped[uuid.UUID] = mapped_column(Uuid, ForeignKey("users.id", ondelete="RESTRICT"), nullable=False)
+    created_by: Mapped[Optional[uuid.UUID]] = mapped_column(Uuid, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
     type: Mapped[TaskType] = mapped_column(
         Enum(TaskType, name="task_type", values_callable=lambda obj: [e.value for e in obj]),
         nullable=False,
@@ -101,7 +101,7 @@ class Task(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     )
 
     course: Mapped["Course"] = relationship("Course", back_populates="tasks")
-    creator: Mapped["User"] = relationship("User", foreign_keys=[created_by])
+    creator: Mapped[Optional["User"]] = relationship("User", foreign_keys=[created_by])
     exam: Mapped[Optional["Exam"]] = relationship("Exam", back_populates="task", foreign_keys=[exam_id])
     completions: Mapped[List["TaskCompletion"]] = relationship("TaskCompletion", back_populates="task", cascade="all, delete-orphan")
     recipients: Mapped[List["TaskRecipient"]] = relationship("TaskRecipient", back_populates="task", cascade="all, delete-orphan")

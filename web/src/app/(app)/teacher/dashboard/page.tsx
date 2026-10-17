@@ -16,6 +16,7 @@ import {
   TrendingUp,
   Sparkles,
   Loader2,
+  Presentation,
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Card, PageHeader, StatCard } from "@/components/ui/Card";
@@ -116,6 +117,9 @@ export default function TeacherDashboard() {
           </Button>
           <Button href="/teacher/tasks" variant="secondary" size="md" className="min-h-11 w-full sm:w-auto">
             <ClipboardCheck size={16} /> Review Submissions
+          </Button>
+          <Button href="/whiteboard" variant="secondary" size="md" className="min-h-11 w-full sm:w-auto">
+            <Presentation size={16} /> Create Live Classroom
           </Button>
         </div>
       </div>

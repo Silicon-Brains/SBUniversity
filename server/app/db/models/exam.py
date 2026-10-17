@@ -41,7 +41,7 @@ class Exam(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     )
 
     course_id: Mapped[uuid.UUID] = mapped_column(Uuid, ForeignKey("courses.id", ondelete="CASCADE"), nullable=False, index=True)
-    created_by: Mapped[uuid.UUID] = mapped_column(Uuid, ForeignKey("users.id", ondelete="RESTRICT"), nullable=False)
+    created_by: Mapped[Optional[uuid.UUID]] = mapped_column(Uuid, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
     title: Mapped[str] = mapped_column(String, nullable=False)
     instructions: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     duration_minutes: Mapped[int] = mapped_column(Integer, nullable=False)
@@ -61,7 +61,7 @@ class Exam(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     )
 
     course: Mapped["Course"] = relationship("Course", back_populates="exams")
-    creator: Mapped["User"] = relationship("User")
+    creator: Mapped[Optional["User"]] = relationship("User")
     questions: Mapped[List["Question"]] = relationship("Question", back_populates="exam", cascade="all, delete-orphan", order_by="Question.position")
     attempts: Mapped[List["ExamAttempt"]] = relationship("ExamAttempt", back_populates="exam", cascade="all, delete-orphan")
     results: Mapped[List["Result"]] = relationship("Result", back_populates="exam", cascade="all, delete-orphan")

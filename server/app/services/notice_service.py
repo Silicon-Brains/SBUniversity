@@ -25,7 +25,9 @@ class NoticeService:
             if data.audience != NoticeAudience.COURSE or not data.course_id:
                 raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Teachers can only publish notices targeted to their own courses")
             course = await self.course_repo.get_by_id(data.course_id)
-            if not course or course.teacher_id != author.id:
+            if not course or not await self.course_repo.is_teacher_assigned(
+                course.id, author.id
+            ):
                 raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Cannot post notices to a course taught by another teacher")
 
         notice = Notice(

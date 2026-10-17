@@ -2,6 +2,9 @@
 
 Legend: `[ ]` pending · `[x]` done. Each phase must end with a working, demonstrable result.
 
+## Repository status (2026-10-18)
+The repository has progressed beyond the original planning-only state. Admin course/account controls, the live whiteboard, Aarsh Intelligence UI, and major student/teacher workflows are implemented. Checkboxes below track individual acceptance criteria; implementation does not imply production deployment, configured external services, or completed load testing.
+
 ---
 ## Phase 0 — Documentation Foundation
 **Objective:** Finalize source-of-truth docs.
@@ -55,8 +58,9 @@ Legend: `[ ]` pending · `[x]` done. Each phase must end with a working, demonst
 
 ## Phase 5 — Admin: User Control & Notices
 **Objective:** Admin can manage the platform basics.
-- [ ] Admin users table: search/filter, role change (DB + Clerk), suspend, soft-delete
-- [ ] Departments, courses, enrollments management
+- [x] Admin users table: search/filter, role change (DB + Clerk), suspend/reactivate, permanent account deletion
+- [x] Course creation/editing/deletion, multi-teacher assignment, and selected/all-active-student enrollment
+- [ ] Departments management and remaining enrollment administration
 - [ ] Audit log writes + viewer
 - [ ] Notice board backend + UI (admin all, teacher scoped, read for all)
 - [ ] Redis notice cache + invalidation
@@ -140,6 +144,9 @@ Legend: `[ ]` pending · `[x]` done. Each phase must end with a working, demonst
 
 ## Phase 14 — Optimization
 - [ ] Query/index tuning, cache hit-rate review, bundle size, image optimization
+- [x] Reduced live whiteboard chat polling from every 4 seconds to every 5 seconds; visibility/focus refresh remains available.
+- [x] Batch student dashboard task-completion status lookups into one query; regression test verifies statuses and query count.
+- [ ] Bulk teacher analytics aggregation and bound/paginate task-completion history; add regression coverage.
 **Completion:** Meets NFR targets in PRD §8.
 
 ## Phase 15 — Deployment

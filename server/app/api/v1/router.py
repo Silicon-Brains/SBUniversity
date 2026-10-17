@@ -14,6 +14,7 @@ from app.api.v1.results import router as results_router
 from app.api.v1.student import router as student_router
 from app.api.v1.tasks import router as tasks_router
 from app.api.v1.teacher import router as teacher_router
+from app.api.v1.whiteboard import router as whiteboard_router
 
 api_v1_router = APIRouter()
 
@@ -37,6 +38,7 @@ api_v1_router.include_router(ranking_router)
 api_v1_router.include_router(notices_router)
 api_v1_router.include_router(community_chat_router)
 api_v1_router.include_router(planner_router)
+api_v1_router.include_router(whiteboard_router)
 api_v1_router.include_router(assistant_router)
 
 # Admin Panel

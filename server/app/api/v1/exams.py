@@ -1,11 +1,11 @@
 import uuid
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 from app.core.deps import get_current_user, require_role
-from app.db.models.course import Course, Enrollment, EnrollmentStatus
+from app.db.models.course import Course, CourseTeacher, Enrollment, EnrollmentStatus
 from app.db.models.exam import AttemptAnswer, AttemptStatus, Exam, ExamAttempt, ExamStatus, Question, QuestionOption
 from app.db.models.user import User, UserRole
 from app.db.session import get_db
@@ -50,7 +50,14 @@ async def list_exams(
         stmt = stmt.where(Exam.course_id.in_(enrolled_ids), Exam.status == ExamStatus.PUBLISHED)
     elif current_user.role == UserRole.TEACHER:
         # Teacher's own courses
-        courses_stmt = select(Course.id).where(Course.teacher_id == current_user.id)
+        courses_stmt = select(Course.id).where(
+            or_(
+                Course.teacher_id == current_user.id,
+                Course.teacher_assignments.any(
+                    CourseTeacher.teacher_id == current_user.id
+                ),
+            )
+        )
         teacher_course_ids = (await db.execute(courses_stmt)).scalars().all()
         stmt = stmt.where(Exam.course_id.in_(teacher_course_ids))
 

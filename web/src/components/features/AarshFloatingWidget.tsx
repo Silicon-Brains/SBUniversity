@@ -1,8 +1,9 @@
 "use client";
 import React, { useState, useRef, useEffect } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import clsx from "clsx";
-import { Bot, Maximize2, Send, Sparkles, X, ShieldAlert, BookOpen, Trophy, Award } from "lucide-react";
+import { Maximize2, Send, Sparkles, X, ShieldAlert, BookOpen, Trophy, Award } from "lucide-react";
 
 interface Message {
   id: string;
@@ -101,8 +102,16 @@ export function AarshFloatingWidget({ userRole, userName }: { userRole: string; 
           className="group flex min-h-14 items-center gap-2.5 rounded-full bg-green-700 px-4 text-cream-50 shadow-xl transition-all duration-200 hover:bg-green-600 hover:scale-105 active:scale-95 sm:px-5"
           aria-label="Open Aarsh Intelligence Assistant"
         >
-          <div className="relative">
-            <Bot size={22} className="text-cream-200" />
+          <div className="relative h-9 w-9 shrink-0">
+            <Image
+              src="/aarsh-ai-orb.gif"
+              alt=""
+              aria-hidden="true"
+              width={36}
+              height={36}
+              unoptimized
+              className="h-9 w-9 rounded-full object-contain mix-blend-screen"
+            />
             <span className="absolute -top-1 -right-1 h-2.5 w-2.5 rounded-full bg-bordo-500 ring-2 ring-green-700" />
           </div>
           <span className="font-heading font-semibold text-sm">Aarsh AI</span>
@@ -115,9 +124,15 @@ export function AarshFloatingWidget({ userRole, userName }: { userRole: string; 
           {/* Header */}
           <div className="flex items-center justify-between border-b border-green-900/20 bg-green-700 px-4 py-3 text-cream-50">
             <div className="flex min-w-0 items-center gap-2.5">
-              <span className="grid h-8 w-8 place-items-center rounded-lg bg-cream-200 text-green-900">
-                <Sparkles size={16} className="text-bordo-700" />
-              </span>
+              <Image
+                src="/aarsh-ai-orb.gif"
+                alt=""
+                aria-hidden="true"
+                width={40}
+                height={40}
+                unoptimized
+                className="h-10 w-10 shrink-0 rounded-full object-contain mix-blend-screen"
+              />
               <div className="min-w-0">
                 <p className="font-heading text-sm font-bold leading-tight">Aarsh Intelligence</p>
                 <p className="text-[11px] text-cream-200">Gemini Academic Assistant</p>
