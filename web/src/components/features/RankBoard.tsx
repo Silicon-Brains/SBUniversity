@@ -36,6 +36,17 @@ interface CourseOption {
   title: string;
 }
 
+interface EnrollmentOption {
+  id: string;
+  course_id: string;
+  code?: string;
+  title?: string;
+  course?: {
+    code: string;
+    title: string;
+  } | null;
+}
+
 const RANK_TIERS = [
   {
     rank: 1,
@@ -158,7 +169,7 @@ export function RankBoard({
     async function loadCourses() {
       try {
         const token = await resolveToken();
-        const data = await api<any[]>("/student/courses", token ?? undefined).catch(() => []);
+        const data = await api<EnrollmentOption[]>("/student/courses", token ?? undefined).catch(() => []);
         if (data && Array.isArray(data)) {
           setCourses(
             data.map((c) => ({

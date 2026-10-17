@@ -52,10 +52,22 @@ interface UpcomingExam {
   start_at: string;
 }
 
+interface RecentResult {
+  id: string;
+  exam_title: string;
+  course_title: string;
+  score: number;
+  total_marks: number;
+  percentage: number;
+  passed: boolean;
+  grade: string;
+  created_at: string;
+}
+
 interface DashboardData {
   enrolled_courses: EnrolledCourse[];
   upcoming_exams: UpcomingExam[];
-  recent_results: any[];
+  recent_results: RecentResult[];
   open_tasks: OpenTask[];
   total_task_points: number;
   tasks_completed: number;

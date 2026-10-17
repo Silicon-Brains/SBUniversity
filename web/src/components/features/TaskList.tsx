@@ -173,8 +173,8 @@ export function TaskList({ initial }: { initial?: TaskItem[] }) {
           : `Submitted "${submittingTask.title}" for teacher review.`
       );
       setSubmittingTask(null);
-    } catch (err: any) {
-      toast(err?.message || "Failed to submit task.");
+    } catch (err: unknown) {
+      toast(err instanceof Error ? err.message : "Failed to submit task.");
     } finally {
       setIsSubmitting(false);
     }

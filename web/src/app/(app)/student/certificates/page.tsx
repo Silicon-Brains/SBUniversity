@@ -76,8 +76,8 @@ export default function StudentCertificatesPage() {
 
       await downloadAndOpenPdf(`/certificates/${cert.id}/pdf`, filename, token ?? undefined);
       toast(`Official Certificate opened in new tab and downloaded for ${cert.course_title || "Course"}!`);
-    } catch (err: any) {
-      toast(err?.message || "Failed to download Certificate PDF.");
+    } catch (err: unknown) {
+      toast(err instanceof Error ? err.message : "Failed to download Certificate PDF.");
     } finally {
       setDownloadingId(null);
     }

@@ -88,8 +88,8 @@ export function ApprovalQueue({ initial }: { initial?: PendingTaskReview[] }) {
           ? `Approved "${item.task_title || "Task"}". +${result.points_awarded ?? item.points_available ?? item.points_awarded} Task Points credited to ${item.student_name}!`
           : `Submission from ${item.student_name} rejected.`
       );
-    } catch (err: any) {
-      toast(err?.message || "Failed to process review.");
+    } catch (err: unknown) {
+      toast(err instanceof Error ? err.message : "Failed to process review.");
     } finally {
       setProcessingId(null);
     }

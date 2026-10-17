@@ -17,7 +17,7 @@ interface AdminCourse {
   enrolled_students: number;
 }
 
-interface CreateCourseResponse extends AdminCourse {}
+type CreateCourseResponse = AdminCourse;
 
 function defaultCourseCode() {
   return `OU-${new Date().getFullYear()}-01`;

@@ -80,7 +80,7 @@ export default function SignInPage() {
                   First time signing in with Google?
                 </p>
                 <p>
-                  If you haven't registered this Google account yet in your Clerk project, visit{" "}
+                  If you haven&apos;t registered this Google account yet in your Clerk project, visit{" "}
                   <Link href="/sign-up" className="font-bold text-green-700 underline">
                     Sign Up
                   </Link>{" "}

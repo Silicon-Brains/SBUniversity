@@ -18,6 +18,8 @@ notice_audience:  all | students | teachers | course
 notice_priority:  normal | important | urgent
 notice_status:    draft | published | archived
 chat_role:        user | model
+planner_entry_kind: learning_plan | note | sticky_note | event | voice_note
+planner_note_shape: rectangle | rounded | circle | cloud | star
 task_type:        exam | assignment
 task_verification: auto | teacher_approval
 task_status:      active | archived
@@ -46,6 +48,7 @@ users 1──* notices (author)
 users 1──* chat_sessions 1──* chat_messages
 users 1──* community_messages
 community_conversations 1──* community_messages
+users 1──* planner_entries (private owner)
 users 1──* audit_logs (actor)
 ```
 
@@ -362,6 +365,27 @@ community_messages
 ```
 `student_room` is shared by active students; `peer_direct` is private to its ordered student pair; `admin_support` is visible only to its student and active admins; `teacher_support` is visible only to its student and active teachers. Admin and teacher buttons open role-specific inbox threads, not conversations with arbitrary students or the other staff role. `expires_at` is reset to ten hours after every new message. A backend sweeper deletes expired conversations (and cascaded messages) once a minute; chat API calls also remove expired rows, so cleanup resumes on the next request after service downtime. Existing `chat_sessions` and `chat_messages` remain reserved for Aarsh AI and are not affected.
 Indexes: `(kind)`, `(expires_at)`, `(requester_student_id)`, `(conversation_id)`, `(sender_id)`, `(created_at)`, `(conversation_id, created_at)`. Database RLS is enabled; application access is additionally checked per conversation.
+
+### planner_entries
+```
+planner_entries
+ ├── id                uuid PK
+ ├── owner_id          uuid NOT NULL → users.id ON DELETE CASCADE
+ ├── kind              planner_entry_kind NOT NULL
+ ├── title             varchar(160) NOT NULL
+ ├── content           text NULL
+ ├── due_at            timestamptz NULL
+ ├── is_completed      boolean NOT NULL default false
+ ├── color             varchar(7) NOT NULL default '#fef3c7'
+ ├── shape             planner_note_shape NOT NULL default 'rounded'
+ ├── emoji             varchar(16) NULL
+ ├── audio_path        varchar(512) NULL → private Supabase/local storage object
+ ├── audio_mime_type   varchar(100) NULL
+ ├── audio_size_bytes  integer NULL (1..26214400 for voice notes)
+ └── created_at / updated_at
+```
+`learning_plan`, `note`, `sticky_note`, `event`, and `voice_note` are personal to the signed-in user, regardless of whether the user is a student, teacher, or admin. The API always scopes reads, updates, deletes, and audio playback to `owner_id`; planner content is never shared between users. Events require a date/time. Sticky-note color, shape, and emoji are stored with the entry. Voice audio itself is stored in private object storage; only its storage path, MIME type, and byte size are stored in PostgreSQL. The API accepts WebM, Ogg, MP4, MP3, WAV, and AAC recordings up to 25 MiB and serves audio only through an authenticated endpoint.
+Indexes: `(owner_id)`, `(kind)`, `(owner_id, kind, due_at)`. Database RLS is enabled; all browser access is mediated by FastAPI.
 
 ### audit_logs
 ```

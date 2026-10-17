@@ -39,7 +39,7 @@ class StorageService:
         local_path.parent.mkdir(parents=True, exist_ok=True)
         with open(local_path, "wb") as f:
             f.write(content)
-        return str(local_path)
+        return str(local_path.resolve())
 
     @staticmethod
     async def download_file(path: str) -> Optional[bytes]:
@@ -60,3 +60,24 @@ class StorageService:
                 return f.read()
 
         return None
+
+    @staticmethod
+    async def delete_file(path: str) -> None:
+        """Deletes a stored object from Supabase Storage or local disk."""
+        if supabase_client and not Path(path).is_absolute():
+            try:
+                bucket = settings.SUPABASE_STORAGE_BUCKET
+                supabase_client.storage.from_(bucket).remove([path])
+                return
+            except Exception as e:
+                logger.error("Failed deleting %s from Supabase Storage: %s", path, e)
+                raise RuntimeError("Could not delete stored file") from e
+
+        local_path = Path(path)
+        if not local_path.is_absolute():
+            local_path = LOCAL_STORAGE_DIR / path
+        try:
+            local_path.unlink(missing_ok=True)
+        except OSError as e:
+            logger.error("Failed deleting local stored file %s: %s", local_path, e)
+            raise RuntimeError("Could not delete stored file") from e
