@@ -60,7 +60,7 @@ flowchart LR
 | Web App | UI, routing, role gate, PDF download, SSE client | REST/SSE to API; Clerk SDK | API, Clerk | Next.js, Tailwind |
 | Auth module | JWT verify, `get_current_user`, `require_role`, webhook sync | `deps.py`, `/webhooks/clerk` | Clerk JWKS, DB, Redis (JWKS cache) | PyJWT, svix |
 | User service | Profiles, roles, status, ID card data | `/me`, `/admin/users` | DB, Clerk API | FastAPI, SQLAlchemy |
-| Course service | Courses, enrollments, progress | `/student/courses`, `/admin/enrollments` | DB | — |
+| Course service | Courses, enrollments, progress, teacher assignments | `/student/courses`, `/admin/courses/*`, `/admin/enrollments` | DB | — |
 | Exam service | Exam CRUD, attempts, timer, autosave, grading | `/exams`, `/attempts` | DB, Task svc, Certificate svc | — |
 | Task service | Tasks CRUD, completions, approval queue, **automatic point awarding** (same transaction), revoke | `/tasks`, `/student/points`, `/admin/tasks/*` | DB, Ranking svc, Audit svc | — |
 | Result service | Results, review, PDF trigger | `/results` | DB, PDF svc, Storage | — |
@@ -71,6 +71,7 @@ flowchart LR
 | AI service | Prompting, safety checks, Gemini streaming, history | `/assistant/*` | Gemini, DB, Redis | google-genai |
 | Analytics service | Aggregates for admin, SSE refresh | `/admin/analytics/*` | DB, Redis | — |
 | Audit service | Immutable admin action log | internal | DB | — |
+| Whiteboard service | Course session lifecycle, stroke sync, undo/clear, join, expiring chat | `/whiteboard/*` | DB, active course membership | — |
 
 ## 6. Data Design
 ### ER Diagram
@@ -80,6 +81,8 @@ erDiagram
   USERS ||--o| TEACHER_PROFILES : has
   DEPARTMENTS ||--o{ COURSES : owns
   USERS ||--o{ COURSES : teaches
+  COURSES ||--o{ COURSE_TEACHERS : assigned
+  USERS ||--o{ COURSE_TEACHERS : teaches
   USERS ||--o{ ENROLLMENTS : enrolls
   COURSES ||--o{ ENROLLMENTS : has
   COURSES ||--o{ EXAMS : has
@@ -99,6 +102,9 @@ erDiagram
   USERS ||--o{ CHAT_SESSIONS : owns
   CHAT_SESSIONS ||--o{ CHAT_MESSAGES : contains
   USERS ||--o{ AUDIT_LOGS : acts
+  COURSES ||--o{ WHITEBOARD_SESSIONS : hosts
+  WHITEBOARD_SESSIONS ||--o{ WHITEBOARD_STROKES : contains
+  WHITEBOARD_SESSIONS ||--o{ WHITEBOARD_MESSAGES : contains
 ```
 (Full column-level detail in `database.md`.)
 
@@ -339,6 +345,7 @@ Retries: exponential backoff for Gemini/Storage (max 3). Backups: Supabase daily
 | Who enrolls students (admin/teacher/self)? | Workflow | Assumed admin/teacher |
 | Exam-day traffic spikes | Latency | Load test in Phase 13 |
 | Gemini cost/quota | Cost/availability | Rate limits, quotas, monitoring |
+| Whiteboard chat polling | Client network/DB load | Five-second polling, focus refresh, ten-minute message expiry |
 | Cheating (no proctoring) | Integrity | Out of scope MVP; shuffle + attempt limits |
 | Teacher self-registration/approval | Security | Admin-granted only |
 | Data privacy/compliance (e.g., student data rules) | Legal | Review before launch |
@@ -351,3 +358,12 @@ Retries: exponential backoff for Gemini/Storage (max 3). Backups: Supabase daily
 ## 17. Appendix
 **Glossary:** *Task Points* points awarded automatically when a task is completed, used for ranking · *RBAC* role-based access control · *JWKS* JSON Web Key Set · *SSE* Server-Sent Events · *ZSET* Redis sorted set · *RLS* Row Level Security · *PITR* point-in-time recovery · *Aarsh Intelligence* the platform's Gemini-powered assistant.
 **References:** Clerk docs (JWT templates, webhooks), FastAPI docs, Supabase docs (Postgres, Storage, RLS), Redis docs (sorted sets, pub/sub), Google Gemini API docs, ReportLab docs.
+
+## 18. Implementation update (2026-10-18)
+- Admin course CRUD supports multiple teachers and selected or all-active-student enrollment. `course_teachers` supplements the primary `courses.teacher_id`.
+- Admin account removal is permanent in Clerk and PostgreSQL. The identity-provider deletion must succeed before the database row is removed; authored teaching content remains with a nullable author reference.
+- Live whiteboards are course-scoped. Teachers control a session and its canvas; students explicitly join, can view and chat, and cannot draw. Chat messages expire after ten minutes; strokes remain with session history.
+- The whiteboard client fetches chat every five seconds (down from four), reducing periodic polls from 15 to 12 per minute per active client (20% fewer) while limiting added chat freshness delay to about one second; focus/visibility refresh remains. Board stroke merge/snapshot ordering is unchanged.
+- The same animated AI orb is used in the assistant page, floating launcher, and panel; `web/src/app/icon.svg` is the favicon.
+- Student dashboard task completion states are fetched in one batched query for the selected tasks rather than one sequential query per task; a regression test verifies the response states and query bound.
+- Performance audit follow-up: bulk teacher analytics aggregation and bound/paginate task-completion history. API p95 and query-count/load targets remain to be measured.

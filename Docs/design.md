@@ -5,6 +5,9 @@
 ## 1. Design Philosophy
 Warm, academic, and prestigious — like a heritage university with a modern interface. Cream gives a calm, paper-like reading surface; deep green gives structure and trust; bordo is used sparingly as the single "action and achievement" color. Dashboards prioritize clarity; the exam screen prioritizes focus. Consistency over novelty: use only the tokens defined here.
 
+### Aarsh Intelligence animation
+The animated AI orb is used consistently in the assistant page, floating launcher, and floating chat panel. Preserve the animation's transparent-looking appearance by screen-blending its black canvas into the UI rather than adding a black tile or circular background. Keep it sized to the available control space and provide accessible text/labels on the interactive controls. The site favicon is the graduation-cap `web/src/app/icon.svg`.
+
 ## 2. The 60 : 30 : 10 Color Rule
 
 | Share | Role | Color family | Where it appears |

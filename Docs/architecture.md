@@ -13,6 +13,7 @@
 | Cache / Realtime | Redis (cache, leaderboard sorted sets, rate limits, pub/sub) |
 | AI | Google Gemini API (`google-genai` SDK) |
 | PDF generation | ReportLab + `qrcode` (backend) |
+| Live classroom | Course-scoped FastAPI whiteboard sync; persisted strokes and short-lived chat |
 | Hosting (suggested) | Frontend: Vercel · Backend: Docker on Render/Railway/Fly · Redis: Upstash/Redis Cloud |
 
 ## 2. Overall Architecture
@@ -72,6 +73,8 @@ Landing → Sign in (Clerk) → role redirect
 | View ranking | ✅ | ✅ | ✅ |
 | Use AI assistant | ✅ | ✅ | ✅ |
 | User control / analytics / progress | ❌ | ❌ | ✅ |
+| Manage courses and teacher/student assignments | ❌ | ❌ | ✅ |
+| Manage a course whiteboard | ❌ | assigned courses | ✅ |
 
 Ownership checks (e.g., "student can only read own result") are enforced in the **service layer**, not only by role.
 
@@ -251,6 +254,7 @@ Dockerfile
 
 **Admin** (all require admin)
 - `GET /admin/users` · `PATCH /admin/users/{id}/role` · `PATCH /admin/users/{id}/status` · `DELETE /admin/users/{id}` · `POST /admin/enrollments`
+- `GET /admin/courses` · `GET /admin/courses/students` · `POST /admin/courses` · `PATCH /admin/courses/{id}` · `DELETE /admin/courses/{id}` · teacher assignment sync
 - `GET /admin/progress/students` · `GET /admin/progress/students/{id}` · `GET /admin/progress/courses/{id}`
 - `GET /admin/analytics/overview` · `/teachers` · `/students` · `GET /admin/analytics/stream` (SSE)
 - `GET /admin/notices` · moderation via `/notices/*`
@@ -258,6 +262,18 @@ Dockerfile
 
 **Webhooks**
 - `POST /webhooks/clerk`
+
+**Live classroom**
+- Course-scoped live whiteboard session endpoints are grouped under `/whiteboard`; only assigned teachers/admins can control a session, and enrolled students must join before viewing or chatting.
+
+## 14. Current implementation notes (2026-10-18)
+- Admin course management supports create, edit, permanent delete, multiple assigned teachers, selected student enrollment, and enroll-all-active-students.
+- Course-teacher membership is stored in `course_teachers`; `courses.teacher_id` remains the primary-teacher compatibility field.
+- Account deletion is permanent in both Clerk and the application database. It requires `CLERK_SECRET_KEY`; assigned teachers, the signed-in administrator, and the last active administrator are protected by service-layer checks.
+- Course deletion removes dependent course records; authored material is retained when an author account is deleted by setting its creator reference to `NULL`.
+- Live whiteboard messages expire after ten minutes; stored strokes remain with the session history. Chat polling on the web client is every five seconds; focus/visibility refreshes remain available for more immediate updates.
+- Student dashboard task completion statuses are fetched in one batched query for the selected tasks.
+- The AI orb animation is shared by the assistant page, floating launcher, and floating panel. Its black canvas is screen-blended into the UI; the site favicon is `web/src/app/icon.svg`.
 
 ## 10. Data Flow Diagrams
 ### Task completion → Task Points → Live Ranking

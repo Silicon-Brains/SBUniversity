@@ -6,7 +6,7 @@
 **SBUniversity**
 
 ## 2. Overview
-SBUniversity is a web-based university/learning platform where students take online exams, receive auto-generated results and course certificates, see a live leaderboard, and use an AI study assistant called **Aarsh Intelligence**. Teachers manage exams and post notices. Admins control users, monitor progress and analytics, and manage notices.
+SBUniversity is a web-based university/learning platform where students take online exams, receive auto-generated results and course certificates, see a live leaderboard, and use an AI study assistant called **Aarsh Intelligence**. Teachers manage courses, exams, notices, tasks, and live classroom sessions. Admins manage courses and accounts, monitor progress and analytics, and control course membership and teaching assignments.
 
 ## 3. Problem Statement
 Institutions typically run exams, results, certificates, notices and student identity across disconnected tools. This causes manual result work, forged or unverifiable certificates, missed announcements, and no real-time view of student/teacher performance.
@@ -16,7 +16,7 @@ Institutions typically run exams, results, certificates, notices and student ide
 2. Role-based experience for Student, Teacher, Admin.
 3. Server-generated, verifiable PDFs (results, certificates) downloaded from the frontend.
 4. Live Top-4 ranking driven by **Task Points**, awarded automatically when tasks are completed.
-5. Admin visibility into users, progress and live analytics.
+5. Admin control over users, courses, course teacher assignments, and student enrollments, plus visibility into progress and live analytics.
 6. Context-aware AI assistant (Aarsh Intelligence) powered by Google Gemini.
 
 ## 5. Target Users & Roles
@@ -24,7 +24,7 @@ Institutions typically run exams, results, certificates, notices and student ide
 |---|---|---|
 | **Student** | Enrolled learners | Take exams, view results, download result PDF & certificates, view ID card, view ranking & notices, chat with AI |
 | **Teacher** | Faculty | Create/manage own courses' exams & questions, view own students' results, post notices (scoped), use AI |
-| **Admin** | Platform staff | Everything: user control, role assignment, progress check, analytics, notice control, certificate revoke |
+| **Admin** | Platform staff | User and course control, role assignment, course teacher/student assignment, progress check, analytics, notice control, certificate revoke |
 
 ## 6. Core Features
 1. Landing page (public)
@@ -38,8 +38,9 @@ Institutions typically run exams, results, certificates, notices and student ide
 9. Live Ranking Page (Top 4) — ranked by **Task Points**, updated automatically on task completion
 10. Notice Board (Admin + Teachers post; everyone reads)
 11. Aarsh Intelligence chatbot (Gemini)
-12. Admin panel: User Control, Progress Check, Live Analytics, Notice Control
+12. Admin panel: User Control, Course Management, Progress Check, Live Analytics, Notice Control
 13. Tasks & Task Points (teacher-created tasks, points auto-awarded on completion)
+14. Course-scoped live whiteboard with teacher controls and enrolled-student participation
 
 ## 7. Functional Requirements
 ### 7.1 Authentication & Roles
@@ -99,11 +100,13 @@ Institutions typically run exams, results, certificates, notices and student ide
 - Guardrails: no answers to *live in-progress exam* questions (blocked while the student has an active attempt); rate limited; history stored per user.
 
 ### 7.12 Admin
-- **User Control:** list/search/filter, change role, suspend/reactivate, delete (soft), assign student code/department, enroll/unenroll.
+- **User Control:** list/search/filter, change role, suspend/reactivate, permanently delete accounts, assign student code/department, enroll/unenroll. Permanent account deletion also deletes the Clerk identity; student-owned records cascade, while authored teaching content is retained without its author reference.
+- **Course Management:** create, edit, and permanently delete courses; assign multiple teachers and selected students, or enroll all active students. Existing primary-teacher assignment remains supported.
 - **Progress Check:** per-student and per-course progress, exam history, certificate status, task completions and points; **revoke** a task completion (its points are removed, action audited).
 - **Live Analytics:** teachers (exams created, submissions, avg score, pass rate) and students (active now, avg score, completion rate); auto-refresh.
 - **Notice Control:** moderate all notices (edit, pin, archive, delete).
 - All admin routes secured (see 11).
+- Assigned teachers cannot be demoted or deleted until reassigned. Administrators cannot delete their own account or the last active administrator.
 
 ### 7.13 Tasks & Task Points
 - A **Task** belongs to a course and has: title, description, **points** (integer ≥ 0), type, optional due date, and a verification mode.
@@ -121,6 +124,12 @@ Institutions typically run exams, results, certificates, notices and student ide
 - Student: sees open / pending / completed tasks, points per task, total points; gets an in-app toast when points are awarded.
 - Teacher: create/edit/archive tasks for **own courses**, review the approval queue. Admin: all courses, can revoke a completion.
 - Points are computed server-side only; clients can never send or edit points.
+
+### 7.14 Live Classroom Whiteboard
+- An assigned course teacher or administrator can create and end a live whiteboard session for a course.
+- Enrolled students explicitly join to view the board and participate in class chat; students cannot access another course's session.
+- Teachers can draw, undo, and clear the board. Students have read-only canvas access.
+- Chat messages expire after ten minutes; whiteboard strokes remain with the session history.
 
 ## 8. Non-Functional Requirements
 | Area | Requirement |
@@ -153,8 +162,10 @@ Institutions typically run exams, results, certificates, notices and student ide
 | `/teacher/exams`, `/teacher/exams/new`, `/teacher/exams/[id]` | Manage exams | Teacher |
 | `/teacher/notices` | Teacher notices | Teacher |
 | `/teacher/tasks` | Manage tasks & approval queue | Teacher |
+| `/whiteboard` | Course live whiteboard | Assigned teacher / enrolled student |
 | `/admin` | Admin overview | Admin |
 | `/admin/users` | User control | Admin |
+| `/admin/courses` | Course creation, teacher assignments, and student enrollment | Admin |
 | `/admin/progress` | Progress check | Admin |
 | `/admin/analytics` | Live analytics | Admin |
 | `/admin/notices` | Notice control | Admin |

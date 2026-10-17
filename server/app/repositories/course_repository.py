@@ -1,9 +1,9 @@
 import uuid
 from typing import List, Optional, Tuple
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
-from app.db.models.course import Course, Enrollment, EnrollmentStatus
+from app.db.models.course import Course, CourseTeacher, Enrollment, EnrollmentStatus
 
 
 class CourseRepository:
@@ -11,7 +11,16 @@ class CourseRepository:
         self.db = db
 
     async def get_by_id(self, course_id: uuid.UUID) -> Optional[Course]:
-        stmt = select(Course).options(selectinload(Course.department), selectinload(Course.teacher)).where(Course.id == course_id)
+        stmt = (
+            select(Course)
+            .options(
+                selectinload(Course.department),
+                selectinload(Course.teacher),
+                selectinload(Course.teacher_assignments),
+                selectinload(Course.enrollments),
+            )
+            .where(Course.id == course_id)
+        )
         result = await self.db.execute(stmt)
         return result.scalar_one_or_none()
 
@@ -31,8 +40,12 @@ class CourseRepository:
         count_stmt = select(func.count(Course.id))
 
         if teacher_id:
-            stmt = stmt.where(Course.teacher_id == teacher_id)
-            count_stmt = count_stmt.where(Course.teacher_id == teacher_id)
+            teacher_filter = or_(
+                Course.teacher_id == teacher_id,
+                Course.teacher_assignments.any(CourseTeacher.teacher_id == teacher_id),
+            )
+            stmt = stmt.where(teacher_filter)
+            count_stmt = count_stmt.where(teacher_filter)
         if is_published is not None:
             stmt = stmt.where(Course.is_published == is_published)
             count_stmt = count_stmt.where(Course.is_published == is_published)
@@ -44,6 +57,22 @@ class CourseRepository:
         res = await self.db.execute(stmt)
         return list(res.scalars().all()), total
 
+    async def is_teacher_assigned(
+        self, course_id: uuid.UUID, teacher_id: uuid.UUID
+    ) -> bool:
+        result = await self.db.scalar(
+            select(Course.id).where(
+                Course.id == course_id,
+                or_(
+                    Course.teacher_id == teacher_id,
+                    Course.teacher_assignments.any(
+                        CourseTeacher.teacher_id == teacher_id
+                    ),
+                ),
+            )
+        )
+        return result is not None
+
     async def create(self, course: Course) -> Course:
         self.db.add(course)
         await self.db.commit()
@@ -52,8 +81,7 @@ class CourseRepository:
 
     async def update(self, course: Course) -> Course:
         await self.db.commit()
-        await self.db.refresh(course)
-        return course
+        return (await self.get_by_id(course.id)) or course
 
     # Enrollments
     async def get_enrollment(self, student_id: uuid.UUID, course_id: uuid.UUID) -> Optional[Enrollment]:

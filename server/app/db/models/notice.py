@@ -45,7 +45,7 @@ class Notice(Base, UUIDPrimaryKeyMixin, TimestampMixin):
         ),
     )
 
-    author_id: Mapped[uuid.UUID] = mapped_column(Uuid, ForeignKey("users.id", ondelete="RESTRICT"), nullable=False)
+    author_id: Mapped[Optional[uuid.UUID]] = mapped_column(Uuid, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
     title: Mapped[str] = mapped_column(String, nullable=False)
     body: Mapped[str] = mapped_column(Text, nullable=False)
     audience: Mapped[NoticeAudience] = mapped_column(
@@ -69,5 +69,5 @@ class Notice(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     published_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     expires_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
 
-    author: Mapped["User"] = relationship("User", back_populates="notices_authored")
+    author: Mapped[Optional["User"]] = relationship("User", back_populates="notices_authored")
     course: Mapped[Optional["Course"]] = relationship("Course", back_populates="notices")

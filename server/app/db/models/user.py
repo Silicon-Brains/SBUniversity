@@ -43,13 +43,16 @@ class User(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     # Relationships
     student_profile: Mapped[Optional["StudentProfile"]] = relationship("StudentProfile", back_populates="user", uselist=False, cascade="all, delete-orphan", lazy="selectin")
     teacher_profile: Mapped[Optional["TeacherProfile"]] = relationship("TeacherProfile", back_populates="user", uselist=False, cascade="all, delete-orphan", lazy="selectin")
-    courses_taught: Mapped[List["Course"]] = relationship("Course", back_populates="teacher", foreign_keys="Course.teacher_id")
+    courses_taught: Mapped[List["Course"]] = relationship("Course", back_populates="teacher", foreign_keys="Course.teacher_id", passive_deletes="all")
+    course_assignments: Mapped[List["CourseTeacher"]] = relationship(
+        "CourseTeacher", back_populates="teacher", passive_deletes=True
+    )
     enrollments: Mapped[List["Enrollment"]] = relationship("Enrollment", back_populates="student", cascade="all, delete-orphan")
     exam_attempts: Mapped[List["ExamAttempt"]] = relationship("ExamAttempt", back_populates="student", cascade="all, delete-orphan")
     results: Mapped[List["Result"]] = relationship("Result", back_populates="student", cascade="all, delete-orphan")
     certificates: Mapped[List["Certificate"]] = relationship("Certificate", back_populates="student", foreign_keys="Certificate.student_id", cascade="all, delete-orphan")
     task_completions: Mapped[List["TaskCompletion"]] = relationship("TaskCompletion", back_populates="student", foreign_keys="TaskCompletion.student_id", cascade="all, delete-orphan")
-    notices_authored: Mapped[List["Notice"]] = relationship("Notice", back_populates="author", cascade="all, delete-orphan")
+    notices_authored: Mapped[List["Notice"]] = relationship("Notice", back_populates="author")
     chat_sessions: Mapped[List["ChatSession"]] = relationship("ChatSession", back_populates="user", cascade="all, delete-orphan")
 
 

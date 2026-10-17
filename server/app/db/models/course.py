@@ -2,7 +2,7 @@ import enum
 import uuid
 from datetime import datetime
 from typing import List, Optional
-from sqlalchemy import Boolean, DateTime, Enum, ForeignKey, Numeric, String, Text, UniqueConstraint, Uuid, func
+from sqlalchemy import Boolean, DateTime, Enum, ForeignKey, Index, Numeric, String, Text, UniqueConstraint, Uuid, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.db.base import Base, TimestampMixin, UUIDPrimaryKeyMixin
 
@@ -25,11 +25,34 @@ class Course(Base, UUIDPrimaryKeyMixin, TimestampMixin):
 
     department: Mapped[Optional["Department"]] = relationship("Department", back_populates="courses")
     teacher: Mapped["User"] = relationship("User", back_populates="courses_taught", foreign_keys=[teacher_id])
+    teacher_assignments: Mapped[List["CourseTeacher"]] = relationship(
+        "CourseTeacher",
+        back_populates="course",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
     enrollments: Mapped[List["Enrollment"]] = relationship("Enrollment", back_populates="course", cascade="all, delete-orphan")
     exams: Mapped[List["Exam"]] = relationship("Exam", back_populates="course", cascade="all, delete-orphan")
     tasks: Mapped[List["Task"]] = relationship("Task", back_populates="course", cascade="all, delete-orphan")
     certificates: Mapped[List["Certificate"]] = relationship("Certificate", back_populates="course", cascade="all, delete-orphan")
     notices: Mapped[List["Notice"]] = relationship("Notice", back_populates="course", cascade="all, delete-orphan")
+
+
+class CourseTeacher(Base):
+    __tablename__ = "course_teachers"
+    __table_args__ = (
+        Index("ix_course_teachers_teacher_id", "teacher_id"),
+    )
+
+    course_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid, ForeignKey("courses.id", ondelete="CASCADE"), primary_key=True
+    )
+    teacher_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid, ForeignKey("users.id", ondelete="CASCADE"), primary_key=True
+    )
+
+    course: Mapped["Course"] = relationship("Course", back_populates="teacher_assignments")
+    teacher: Mapped["User"] = relationship("User", back_populates="course_assignments")
 
 
 class Enrollment(Base, UUIDPrimaryKeyMixin):

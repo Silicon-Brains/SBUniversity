@@ -595,7 +595,88 @@ CREATE TRIGGER set_timestamp_planner_entries
 BEFORE UPDATE ON public.planner_entries
 FOR EACH ROW EXECUTE FUNCTION trigger_set_timestamp();
 
--- 4.20 audit_logs
+-- 4.20 course-scoped live whiteboard sessions and 10-minute class chat
+CREATE TABLE IF NOT EXISTS public.whiteboard_sessions (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    course_id UUID NOT NULL REFERENCES public.courses(id) ON DELETE CASCADE,
+    created_by UUID NOT NULL REFERENCES public.users(id) ON DELETE RESTRICT,
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    board_generation INTEGER NOT NULL DEFAULT 0,
+    started_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    ended_at TIMESTAMPTZ NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+ALTER TABLE public.whiteboard_sessions
+    ADD COLUMN IF NOT EXISTS board_generation INTEGER NOT NULL DEFAULT 0;
+
+CREATE INDEX IF NOT EXISTS idx_whiteboard_sessions_course_id
+    ON public.whiteboard_sessions(course_id);
+CREATE INDEX IF NOT EXISTS idx_whiteboard_sessions_created_by
+    ON public.whiteboard_sessions(created_by);
+CREATE UNIQUE INDEX IF NOT EXISTS uq_whiteboard_sessions_active_course
+    ON public.whiteboard_sessions(course_id) WHERE is_active = TRUE;
+
+DROP TRIGGER IF EXISTS set_timestamp_whiteboard_sessions
+    ON public.whiteboard_sessions;
+CREATE TRIGGER set_timestamp_whiteboard_sessions
+BEFORE UPDATE ON public.whiteboard_sessions
+FOR EACH ROW EXECUTE FUNCTION trigger_set_timestamp();
+
+CREATE TABLE IF NOT EXISTS public.whiteboard_strokes (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    session_id UUID NOT NULL
+        REFERENCES public.whiteboard_sessions(id) ON DELETE CASCADE,
+    author_id UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
+    tool VARCHAR(16) NOT NULL,
+    color VARCHAR(7) NOT NULL,
+    width INTEGER NOT NULL,
+    points JSONB NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    CONSTRAINT ck_whiteboard_stroke_tool
+        CHECK (tool IN ('pen', 'eraser', 'line', 'rectangle', 'ellipse')),
+    CONSTRAINT ck_whiteboard_stroke_color
+        CHECK (color ~ '^#[0-9a-fA-F]{6}$'),
+    CONSTRAINT ck_whiteboard_stroke_width
+        CHECK (width BETWEEN 1 AND 40)
+);
+
+CREATE INDEX IF NOT EXISTS idx_whiteboard_strokes_session
+    ON public.whiteboard_strokes(session_id);
+CREATE INDEX IF NOT EXISTS idx_whiteboard_strokes_author
+    ON public.whiteboard_strokes(author_id);
+CREATE INDEX IF NOT EXISTS idx_whiteboard_strokes_created
+    ON public.whiteboard_strokes(created_at);
+CREATE INDEX IF NOT EXISTS idx_whiteboard_strokes_session_created
+    ON public.whiteboard_strokes(session_id, created_at);
+
+CREATE TABLE IF NOT EXISTS public.whiteboard_messages (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    session_id UUID NOT NULL
+        REFERENCES public.whiteboard_sessions(id) ON DELETE CASCADE,
+    sender_id UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
+    content TEXT NOT NULL,
+    expires_at TIMESTAMPTZ NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    CONSTRAINT ck_whiteboard_message_content_length
+        CHECK (length(content) > 0 AND length(content) <= 1000),
+    CONSTRAINT ck_whiteboard_message_expiry
+        CHECK (expires_at > created_at)
+);
+
+CREATE INDEX IF NOT EXISTS idx_whiteboard_messages_session
+    ON public.whiteboard_messages(session_id);
+CREATE INDEX IF NOT EXISTS idx_whiteboard_messages_sender
+    ON public.whiteboard_messages(sender_id);
+CREATE INDEX IF NOT EXISTS idx_whiteboard_messages_created
+    ON public.whiteboard_messages(created_at);
+CREATE INDEX IF NOT EXISTS idx_whiteboard_messages_expires
+    ON public.whiteboard_messages(expires_at);
+CREATE INDEX IF NOT EXISTS idx_whiteboard_messages_session_created
+    ON public.whiteboard_messages(session_id, created_at);
+
+-- 4.21 audit_logs
 CREATE TABLE IF NOT EXISTS public.audit_logs (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     actor_id UUID NULL REFERENCES public.users(id) ON DELETE SET NULL,
@@ -639,9 +720,52 @@ ALTER TABLE public.chat_messages ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.community_conversations ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.community_messages ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.planner_entries ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.whiteboard_sessions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.whiteboard_strokes ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.whiteboard_messages ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.audit_logs ENABLE ROW LEVEL SECURITY;
 
 -- 6. STORAGE BUCKET INITIALIZATION (Supabase Storage)
 INSERT INTO storage.buckets (id, name, public)
 VALUES ('sbu-storage', 'sbu-storage', false)
 ON CONFLICT (id) DO NOTHING;
+
+-- 7. ADMIN COURSE MANAGEMENT AND ACCOUNT DELETION
+CREATE TABLE IF NOT EXISTS public.course_teachers (
+    course_id UUID NOT NULL REFERENCES public.courses(id) ON DELETE CASCADE,
+    teacher_id UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
+    PRIMARY KEY (course_id, teacher_id)
+);
+CREATE INDEX IF NOT EXISTS idx_course_teachers_teacher_id
+    ON public.course_teachers(teacher_id);
+
+INSERT INTO public.course_teachers (course_id, teacher_id)
+SELECT c.id, c.teacher_id
+FROM public.courses AS c
+JOIN public.users AS u ON u.id = c.teacher_id
+WHERE u.role = 'teacher'
+ON CONFLICT (course_id, teacher_id) DO NOTHING;
+
+ALTER TABLE public.exams
+    ALTER COLUMN created_by DROP NOT NULL,
+    DROP CONSTRAINT IF EXISTS exams_created_by_fkey,
+    ADD CONSTRAINT exams_created_by_fkey
+        FOREIGN KEY (created_by) REFERENCES public.users(id) ON DELETE SET NULL;
+ALTER TABLE public.tasks
+    ALTER COLUMN created_by DROP NOT NULL,
+    DROP CONSTRAINT IF EXISTS tasks_created_by_fkey,
+    ADD CONSTRAINT tasks_created_by_fkey
+        FOREIGN KEY (created_by) REFERENCES public.users(id) ON DELETE SET NULL;
+ALTER TABLE public.notices
+    ALTER COLUMN author_id DROP NOT NULL,
+    DROP CONSTRAINT IF EXISTS notices_author_id_fkey,
+    ADD CONSTRAINT notices_author_id_fkey
+        FOREIGN KEY (author_id) REFERENCES public.users(id) ON DELETE SET NULL;
+ALTER TABLE public.whiteboard_sessions
+    ALTER COLUMN created_by DROP NOT NULL,
+    DROP CONSTRAINT IF EXISTS whiteboard_sessions_teacher_id_fkey,
+    DROP CONSTRAINT IF EXISTS whiteboard_sessions_created_by_fkey,
+    ADD CONSTRAINT whiteboard_sessions_created_by_fkey
+        FOREIGN KEY (created_by) REFERENCES public.users(id) ON DELETE SET NULL;
+
+ALTER TABLE public.course_teachers ENABLE ROW LEVEL SECURITY;

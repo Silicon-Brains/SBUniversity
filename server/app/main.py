@@ -2,6 +2,7 @@ import asyncio
 from contextlib import asynccontextmanager
 from typing import Any
 from fastapi import FastAPI, HTTPException, Request, status
+from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -15,6 +16,7 @@ from app.repositories.exam_repository import ExamRepository
 from app.repositories.community_chat_repository import CommunityChatRepository
 from app.services.exam_service import ExamService
 from app.services.ranking_service import RankingService
+from app.repositories.whiteboard_repository import WhiteboardRepository
 
 
 async def periodic_expired_attempts_sweeper():
@@ -55,6 +57,21 @@ async def periodic_expired_community_chats_sweeper():
             logger.error("Exception in community chat sweeper: %s", e)
 
 
+async def periodic_expired_whiteboard_messages_sweeper():
+    """Permanently delete live-class messages once their 10-minute TTL elapses."""
+    while True:
+        try:
+            await asyncio.sleep(30)
+            async with AsyncSessionLocal() as session:
+                deleted = await WhiteboardRepository(session).delete_expired_messages()
+                if deleted:
+                    logger.info("Removed %d expired live-class messages", deleted)
+        except asyncio.CancelledError:
+            break
+        except Exception as e:
+            logger.error("Exception in live-class message sweeper: %s", e)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup
@@ -77,14 +94,21 @@ async def lifespan(app: FastAPI):
     community_chat_sweeper_task = asyncio.create_task(
         periodic_expired_community_chats_sweeper()
     )
+    whiteboard_chat_sweeper_task = asyncio.create_task(
+        periodic_expired_whiteboard_messages_sweeper()
+    )
 
     yield
 
     # Shutdown
     sweeper_task.cancel()
     community_chat_sweeper_task.cancel()
+    whiteboard_chat_sweeper_task.cancel()
     await asyncio.gather(
-        sweeper_task, community_chat_sweeper_task, return_exceptions=True
+        sweeper_task,
+        community_chat_sweeper_task,
+        whiteboard_chat_sweeper_task,
+        return_exceptions=True,
     )
     await close_redis_client()
     logger.info("Shutdown complete for %s", settings.APP_NAME)
@@ -136,7 +160,7 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
             "error": {
                 "code": "VALIDATION_ERROR",
                 "message": "Invalid request parameters or payload.",
-                "details": exc.errors(),
+                "details": jsonable_encoder(exc.errors()),
             }
         },
     )

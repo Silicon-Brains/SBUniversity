@@ -27,7 +27,7 @@ class NoticeUpdate(BaseModel):
 class NoticeResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: uuid.UUID
-    author_id: uuid.UUID
+    author_id: Optional[uuid.UUID] = None
     author_name: Optional[str] = None
     title: str
     body: str

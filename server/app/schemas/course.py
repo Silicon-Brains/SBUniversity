@@ -57,9 +57,41 @@ class AdminCourseCreate(BaseModel):
     title: str = Field(min_length=2, max_length=200)
     description: Optional[str] = None
     department_id: Optional[uuid.UUID] = None
+    teacher_id: Optional[uuid.UUID] = None
+    teacher_ids: list[uuid.UUID] = Field(default_factory=list)
+    student_ids: list[uuid.UUID] = Field(default_factory=list)
     is_published: bool = True
     enroll_all_active_students: bool = True
 
 
+class AdminCourseUpdate(BaseModel):
+    code: Optional[str] = Field(default=None, min_length=2, max_length=50)
+    title: Optional[str] = Field(default=None, min_length=2, max_length=200)
+    description: Optional[str] = None
+    department_id: Optional[uuid.UUID] = None
+    teacher_ids: Optional[list[uuid.UUID]] = None
+    student_ids: Optional[list[uuid.UUID]] = None
+    is_published: Optional[bool] = None
+    enroll_all_active_students: Optional[bool] = None
+
+
 class AdminCourseResponse(CourseResponse):
     enrolled_students: int = 0
+    teacher_ids: list[uuid.UUID] = Field(default_factory=list)
+    student_ids: list[uuid.UUID] = Field(default_factory=list)
+
+
+class AdminTeacherResponse(BaseModel):
+    id: uuid.UUID
+    full_name: str
+    email: str
+
+
+class AdminStudentResponse(BaseModel):
+    id: uuid.UUID
+    full_name: str
+    email: str
+
+
+class AdminCourseTeacherUpdate(BaseModel):
+    teacher_id: uuid.UUID

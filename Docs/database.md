@@ -33,7 +33,7 @@ completion_status: pending_review | completed | rejected | revoked
 users 1──1 student_profiles
 users 1──1 teacher_profiles
 departments 1──* student_profiles / teacher_profiles / courses
-users(teacher) 1──* courses
+users(teacher) *──* courses        (via course_teachers; courses.teacher_id remains the primary teacher)
 users(student) *──* courses   (via enrollments)
 courses 1──* exams 1──* questions 1──* question_options
 exams 1──* exam_attempts *──1 users(student)
@@ -49,6 +49,8 @@ users 1──* chat_sessions 1──* chat_messages
 users 1──* community_messages
 community_conversations 1──* community_messages
 users 1──* planner_entries (private owner)
+courses 1──* whiteboard_sessions 1──* whiteboard_strokes
+whiteboard_sessions 1──* whiteboard_messages (expires after 10 minutes)
 users 1──* audit_logs (actor)
 ```
 
@@ -112,12 +114,21 @@ courses
  ├── title         text NOT NULL
  ├── description   text NULL
  ├── department_id uuid NULL → departments.id
- ├── teacher_id    uuid NOT NULL → users.id        -- must have role teacher
+ ├── teacher_id    uuid NOT NULL → users.id        -- primary teacher
  ├── is_published  boolean NOT NULL default false
  ├── created_at / updated_at
 ```
 Indexes: `(teacher_id)`, `(department_id)`.
-Admin course creation can enroll every currently active student in one transaction by inserting active `enrollments` rows for the new course. The default is enabled; suspended/deleted accounts are excluded. Each enrollment uses the existing `(student_id, course_id)` unique constraint; the course itself is stored in `courses`.
+Admin course creation can enroll every currently active student or selected students by inserting active `enrollments` rows in the same transaction. Suspended/deleted accounts cannot be newly enrolled. Course teacher assignments are stored in `course_teachers`; existing primary teachers are backfilled by migration.
+
+### course_teachers
+```
+course_teachers
+ ├── course_id  uuid NOT NULL → courses.id ON DELETE CASCADE
+ ├── teacher_id uuid NOT NULL → users.id ON DELETE CASCADE
+ └── PRIMARY KEY (course_id, teacher_id)
+```
+Index: `(teacher_id)`. The course's `teacher_id` is retained as its primary teacher for compatibility; this table records every teacher authorized to manage that course.
 
 ### enrollments
 ```
@@ -138,7 +149,7 @@ Indexes: `(course_id)`, `(student_id)`.
 exams
  ├── id                 uuid PK
  ├── course_id          uuid NOT NULL → courses.id
- ├── created_by         uuid NOT NULL → users.id
+ ├── created_by         uuid NULL → users.id ON DELETE SET NULL
  ├── title              text NOT NULL
  ├── instructions       text NULL
  ├── duration_minutes   int NOT NULL CHECK (> 0)
@@ -244,7 +255,7 @@ certificates
 tasks
  ├── id            uuid PK
  ├── course_id     uuid NOT NULL → courses.id
- ├── created_by    uuid NOT NULL → users.id
+ ├── created_by    uuid NULL → users.id ON DELETE SET NULL
  ├── type          task_type NOT NULL
  ├── exam_id       uuid NULL UNIQUE → exams.id ON DELETE RESTRICT   -- exam tasks only
  ├── title         text NOT NULL
@@ -311,7 +322,7 @@ Students can update progress only for assigned video tasks. Progress is monotoni
 ```
 notices
  ├── id            uuid PK
- ├── author_id     uuid NOT NULL → users.id
+ ├── author_id     uuid NULL → users.id ON DELETE SET NULL
  ├── title         text NOT NULL
  ├── body          text NOT NULL
  ├── audience      notice_audience NOT NULL default 'all'
@@ -387,6 +398,39 @@ planner_entries
 `learning_plan`, `note`, `sticky_note`, `event`, and `voice_note` are personal to the signed-in user, regardless of whether the user is a student, teacher, or admin. The API always scopes reads, updates, deletes, and audio playback to `owner_id`; planner content is never shared between users. Events require a date/time. Sticky-note color, shape, and emoji are stored with the entry. Voice audio itself is stored in private object storage; only its storage path, MIME type, and byte size are stored in PostgreSQL. The API accepts WebM, Ogg, MP4, MP3, WAV, and AAC recordings up to 25 MiB and serves audio only through an authenticated endpoint.
 Indexes: `(owner_id)`, `(kind)`, `(owner_id, kind, due_at)`. Database RLS is enabled; all browser access is mediated by FastAPI.
 
+### whiteboard_sessions / whiteboard_strokes / whiteboard_messages
+```
+whiteboard_sessions
+ ├── id          uuid PK
+ ├── course_id   uuid NOT NULL → courses.id ON DELETE CASCADE
+ ├── created_by  uuid NULL → users.id ON DELETE SET NULL
+ ├── is_active   boolean NOT NULL default true
+ ├── board_generation integer NOT NULL default 0  -- bumped when strokes are removed
+ ├── started_at  timestamptz NOT NULL default now()
+ ├── ended_at    timestamptz NULL
+ └── created_at / updated_at
+
+whiteboard_strokes
+ ├── id          uuid PK
+ ├── session_id  uuid NOT NULL → whiteboard_sessions.id ON DELETE CASCADE
+ ├── author_id   uuid NOT NULL → users.id ON DELETE CASCADE
+ ├── tool        varchar(16) NOT NULL  -- pen | eraser | line | rectangle | ellipse
+ ├── color       varchar(7) NOT NULL   -- #RRGGBB
+ ├── width       integer NOT NULL CHECK (1..40)
+ ├── points      jsonb NOT NULL        -- normalized x/y points (0..1)
+ └── created_at  timestamptz NOT NULL default now()
+
+whiteboard_messages
+ ├── id          uuid PK
+ ├── session_id  uuid NOT NULL → whiteboard_sessions.id ON DELETE CASCADE
+ ├── sender_id   uuid NOT NULL → users.id ON DELETE CASCADE
+ ├── content     text NOT NULL CHECK (1..1000 characters)
+ ├── expires_at  timestamptz NOT NULL  -- created_at + 10 minutes
+ └── created_at  timestamptz NOT NULL default now()
+```
+The assigned course teacher or an administrator can create/end a live session, draw, undo, and clear the board. Active enrollees must explicitly join; after joining, they can view the board read-only and send/read class messages. A student cannot access another course's session. Admins may create and control a board but do not receive the class chat; the assigned teacher and enrolled students can chat. A partial unique index permits only one active session per course. `board_generation` is incremented on undo/clear so clients can request only newly added strokes until a full snapshot is required. Whiteboard strokes remain for the session history; live chat messages are permanently deleted ten minutes after each message is sent. The backend sweeper removes expired messages every 30 seconds, while reads also delete expired rows to cover downtime. Apply migrations `009_whiteboard_creator` after `008_live_whiteboard` and `010_whiteboard_sync_generation` after `009`. For a database initialized from the SQL bootstrap before `board_generation` was added, apply `ALTER TABLE public.whiteboard_sessions ADD COLUMN IF NOT EXISTS board_generation INTEGER NOT NULL DEFAULT 0;`; this is safe when the column already exists. Direct browser access remains blocked by RLS.
+Indexes: `(course_id) WHERE is_active`, `(session_id, created_at)` for strokes and messages, `(expires_at)` for chat cleanup, and author/sender ownership indexes.
+
 ### audit_logs
 ```
 audit_logs
@@ -400,6 +444,10 @@ audit_logs
  └── created_at   timestamptz default now()
 ```
 Index: `(created_at DESC)`, `(actor_id)`.
+
+Permanent admin course deletion removes the course's related exams, attempts, results, tasks, enrollments, certificates, notices, and whiteboard sessions. Permanent user deletion removes the identity-provider account and database user; student-owned records cascade with that user, while authored exams, tasks, notices, and whiteboard sessions are retained with their creator field set to NULL. A teacher must be reassigned from all courses before their account can be deleted. The last active administrator and the signed-in administrator cannot be deleted.
+
+Apply the new schema with `alembic upgrade head` (revision `011_admin_course_management`) or execute the corresponding update section at the end of `server/supabase_migration.sql` against Supabase PostgreSQL.
 
 ## 5. Derived Data (no duplicate storage)
 - **Leaderboard (Task Points):** computed from `task_completions` and held in Redis; rebuilt from DB on cold start and reconciled nightly. Exam marks are **not** used.

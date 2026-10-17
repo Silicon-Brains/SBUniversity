@@ -12,6 +12,7 @@ import {
   RefreshCw,
   Search,
   ShieldCheck,
+  Trash2,
   UserMinus,
   UserPlus,
   X,
@@ -350,6 +351,29 @@ export function UsersTable({ initial }: { initial?: unknown }) {
     });
   };
 
+  const handleDeleteUser = (user: ApiUser) => {
+    setConfirm({
+      open: true,
+      title: `Permanently delete ${user.full_name}?`,
+      message: `This permanently deletes ${user.full_name}'s identity-provider account and database account, including their student-owned submissions and personal records. Authored course material is retained without its creator. This cannot be undone.`,
+      confirmLabel: "Delete account permanently",
+      variant: "danger",
+      onConfirm: async () => {
+        let token = await getToken();
+        if (!token && (process.env.NEXT_PUBLIC_DEMO_MODE === "true" || process.env.NODE_ENV === "development")) {
+          token = getDevAuthToken("admin");
+        }
+        await api(`/admin/users/${user.id}`, token ?? undefined, { method: "DELETE" });
+        setUsers((previous) => previous.filter((item) => item.id !== user.id));
+        setTotal((previous) => Math.max(0, previous - 1));
+        setTotalPages(Math.max(1, Math.ceil((total - 1) / PAGE_SIZE)));
+        if (users.length === 1 && page > 1) setPage((previous) => previous - 1);
+        void fetchStats();
+        toast(`Permanently deleted ${user.full_name}'s account.`);
+      },
+    });
+  };
+
   /* ── Execute confirmed action ── */
   const handleConfirm = async () => {
     setConfirmLoading(true);
@@ -584,26 +608,31 @@ export function UsersTable({ initial }: { initial?: unknown }) {
 
                       {/* Actions */}
                       <td className="px-5 py-3.5 text-right">
-                        {u.status !== "deleted" && (
-                          <Button
-                            size="sm"
-                            variant={u.status === "active" ? "danger" : "secondary"}
-                            onClick={() => handleStatusToggle(u)}
-                            className="gap-1.5"
-                          >
-                            {u.status === "active" ? (
-                              <>
-                                <UserMinus size={13} aria-hidden />
-                                Suspend
-                              </>
-                            ) : (
-                              <>
-                                <UserPlus size={13} aria-hidden />
-                                Reactivate
-                              </>
-                            )}
+                        <div className="flex justify-end gap-2">
+                          {u.status !== "deleted" && (
+                            <Button
+                              size="sm"
+                              variant={u.status === "active" ? "danger" : "secondary"}
+                              onClick={() => handleStatusToggle(u)}
+                              className="gap-1.5"
+                            >
+                              {u.status === "active" ? (
+                                <>
+                                  <UserMinus size={13} aria-hidden />
+                                  Suspend
+                                </>
+                              ) : (
+                                <>
+                                  <UserPlus size={13} aria-hidden />
+                                  Reactivate
+                                </>
+                              )}
+                            </Button>
+                          )}
+                          <Button size="sm" variant="danger" onClick={() => handleDeleteUser(u)} className="gap-1.5">
+                            <Trash2 size={13} aria-hidden /> Delete
                           </Button>
-                        )}
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -708,26 +737,31 @@ export function UsersTable({ initial }: { initial?: unknown }) {
                   </div>
                 </dl>
 
-                {u.status !== "deleted" && (
-                  <Button
-                    size="sm"
-                    variant={u.status === "active" ? "danger" : "secondary"}
-                    onClick={() => handleStatusToggle(u)}
-                    className="mt-4 min-h-11 w-full justify-center gap-1.5"
-                  >
-                    {u.status === "active" ? (
-                      <>
-                        <UserMinus size={14} aria-hidden />
-                        Suspend
-                      </>
-                    ) : (
-                      <>
-                        <UserPlus size={14} aria-hidden />
-                        Reactivate
-                      </>
-                    )}
+                <div className="mt-4 grid gap-2 sm:grid-cols-2">
+                  {u.status !== "deleted" && (
+                    <Button
+                      size="sm"
+                      variant={u.status === "active" ? "danger" : "secondary"}
+                      onClick={() => handleStatusToggle(u)}
+                      className="min-h-11 justify-center gap-1.5"
+                    >
+                      {u.status === "active" ? (
+                        <>
+                          <UserMinus size={14} aria-hidden />
+                          Suspend
+                        </>
+                      ) : (
+                        <>
+                          <UserPlus size={14} aria-hidden />
+                          Reactivate
+                        </>
+                      )}
+                    </Button>
+                  )}
+                  <Button size="sm" variant="danger" onClick={() => handleDeleteUser(u)} className="min-h-11 justify-center gap-1.5">
+                    <Trash2 size={14} aria-hidden /> Delete account
                   </Button>
-                )}
+                </div>
               </article>
             ))
           )}

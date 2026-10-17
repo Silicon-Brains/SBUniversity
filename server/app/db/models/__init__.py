@@ -1,6 +1,6 @@
 from app.db.base import Base
 from app.db.models.user import User, UserRole, UserStatus, Department, StudentProfile, TeacherProfile
-from app.db.models.course import Course, Enrollment, EnrollmentStatus
+from app.db.models.course import Course, CourseTeacher, Enrollment, EnrollmentStatus
 from app.db.models.exam import Exam, ExamStatus, Question, QuestionOption, ExamAttempt, AttemptStatus, AttemptAnswer
 from app.db.models.result import Result
 from app.db.models.certificate import Certificate
@@ -26,6 +26,11 @@ from app.db.models.chat import (
     CommunityMessage,
 )
 from app.db.models.planner import PlannerEntry, PlannerEntryKind, PlannerNoteShape
+from app.db.models.whiteboard import (
+    WhiteboardMessage,
+    WhiteboardSession,
+    WhiteboardStroke,
+)
 from app.db.models.audit import AuditLog
 
 __all__ = [
@@ -37,6 +42,7 @@ __all__ = [
     "StudentProfile",
     "TeacherProfile",
     "Course",
+    "CourseTeacher",
     "Enrollment",
     "EnrollmentStatus",
     "Exam",
@@ -71,5 +77,8 @@ __all__ = [
     "PlannerEntry",
     "PlannerEntryKind",
     "PlannerNoteShape",
+    "WhiteboardSession",
+    "WhiteboardStroke",
+    "WhiteboardMessage",
     "AuditLog",
 ]

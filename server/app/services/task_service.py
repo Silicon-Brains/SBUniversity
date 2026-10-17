@@ -126,7 +126,7 @@ class TaskService:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Task not found")
 
         course = await self.course_repo.get_by_id(task.course_id)
-        if user.role == UserRole.TEACHER and task.created_by != user.id and course and course.teacher_id != user.id:
+        if user.role == UserRole.TEACHER and task.created_by != user.id and course and not await self.course_repo.is_teacher_assigned(course.id, user.id):
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Cannot edit tasks from another teacher's course")
 
         if data.title is not None:
@@ -144,7 +144,7 @@ class TaskService:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Task not found")
 
         course = await self.course_repo.get_by_id(task.course_id)
-        if user.role == UserRole.TEACHER and task.created_by != user.id and course and course.teacher_id != user.id:
+        if user.role == UserRole.TEACHER and task.created_by != user.id and course and not await self.course_repo.is_teacher_assigned(course.id, user.id):
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Cannot archive tasks from another teacher's course")
 
         task.status = TaskStatus.ARCHIVED
@@ -266,7 +266,7 @@ class TaskService:
 
         task = completion.task
         course = await self.course_repo.get_by_id(task.course_id)
-        if reviewer.role == UserRole.TEACHER and task.created_by != reviewer.id and course and course.teacher_id != reviewer.id:
+        if reviewer.role == UserRole.TEACHER and task.created_by != reviewer.id and course and not await self.course_repo.is_teacher_assigned(course.id, reviewer.id):
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You can only approve tasks for your own courses")
 
         now = datetime.now(timezone.utc)
@@ -291,7 +291,7 @@ class TaskService:
 
         task = completion.task
         course = await self.course_repo.get_by_id(task.course_id)
-        if reviewer.role == UserRole.TEACHER and task.created_by != reviewer.id and course and course.teacher_id != reviewer.id:
+        if reviewer.role == UserRole.TEACHER and task.created_by != reviewer.id and course and not await self.course_repo.is_teacher_assigned(course.id, reviewer.id):
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You can only review tasks for your own courses")
 
         now = datetime.now(timezone.utc)
