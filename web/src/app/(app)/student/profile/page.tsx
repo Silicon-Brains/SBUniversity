@@ -190,11 +190,13 @@ export default function StudentProfilePage() {
 
       setIsEditModalOpen(false);
       toast("Virtual ID Card details successfully updated in database!");
-    } catch (err: any) {
+    } catch (err: unknown) {
       const msg =
-        err?.message === "Failed to fetch"
+        err instanceof Error && err.message === "Failed to fetch"
           ? "Unable to reach the backend server. Please verify the server is running."
-          : err?.message || "Failed to update ID card details.";
+          : err instanceof Error
+            ? err.message
+            : "Failed to update ID card details.";
       toast(msg);
     } finally {
       setSaving(false);

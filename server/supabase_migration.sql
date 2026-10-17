@@ -51,6 +51,18 @@ DO $$ BEGIN
 EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
 DO $$ BEGIN
+    CREATE TYPE planner_entry_kind AS ENUM (
+        'learning_plan', 'note', 'sticky_note', 'event', 'voice_note'
+    );
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+DO $$ BEGIN
+    CREATE TYPE planner_note_shape AS ENUM (
+        'rectangle', 'rounded', 'circle', 'cloud', 'star'
+    );
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+DO $$ BEGIN
     CREATE TYPE task_type AS ENUM ('exam', 'assignment');
 EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
@@ -539,7 +551,51 @@ CREATE INDEX IF NOT EXISTS idx_community_messages_created
 CREATE INDEX IF NOT EXISTS idx_community_messages_conversation_created
     ON public.community_messages(conversation_id, created_at);
 
--- 4.18 audit_logs
+-- 4.19 personal Learn Planner entries, including private voice-note metadata
+CREATE TABLE IF NOT EXISTS public.planner_entries (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    owner_id UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
+    kind planner_entry_kind NOT NULL,
+    title VARCHAR(160) NOT NULL,
+    content TEXT NULL,
+    due_at TIMESTAMPTZ NULL,
+    is_completed BOOLEAN NOT NULL DEFAULT FALSE,
+    color VARCHAR(7) NOT NULL DEFAULT '#fef3c7',
+    shape planner_note_shape NOT NULL DEFAULT 'rounded',
+    emoji VARCHAR(16) NULL,
+    audio_path VARCHAR(512) NULL,
+    audio_mime_type VARCHAR(100) NULL,
+    audio_size_bytes INTEGER NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    CONSTRAINT ck_planner_entry_audio_size CHECK (
+        audio_size_bytes IS NULL OR
+        (audio_size_bytes > 0 AND audio_size_bytes <= 26214400)
+    ),
+    CONSTRAINT ck_planner_entry_audio_fields CHECK (
+        (kind = 'voice_note' AND audio_path IS NOT NULL
+            AND audio_mime_type IS NOT NULL AND audio_size_bytes IS NOT NULL) OR
+        (kind != 'voice_note' AND audio_path IS NULL
+            AND audio_mime_type IS NULL AND audio_size_bytes IS NULL)
+    ),
+    CONSTRAINT ck_planner_entry_color CHECK (
+        length(color) = 7 AND substr(color, 1, 1) = '#'
+    )
+);
+
+CREATE INDEX IF NOT EXISTS idx_planner_entries_owner_id
+    ON public.planner_entries(owner_id);
+CREATE INDEX IF NOT EXISTS idx_planner_entries_kind
+    ON public.planner_entries(kind);
+CREATE INDEX IF NOT EXISTS idx_planner_entries_owner_kind_due
+    ON public.planner_entries(owner_id, kind, due_at);
+
+DROP TRIGGER IF EXISTS set_timestamp_planner_entries ON public.planner_entries;
+CREATE TRIGGER set_timestamp_planner_entries
+BEFORE UPDATE ON public.planner_entries
+FOR EACH ROW EXECUTE FUNCTION trigger_set_timestamp();
+
+-- 4.20 audit_logs
 CREATE TABLE IF NOT EXISTS public.audit_logs (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     actor_id UUID NULL REFERENCES public.users(id) ON DELETE SET NULL,
@@ -582,6 +638,7 @@ ALTER TABLE public.chat_sessions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.chat_messages ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.community_conversations ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.community_messages ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.planner_entries ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.audit_logs ENABLE ROW LEVEL SECURITY;
 
 -- 6. STORAGE BUCKET INITIALIZATION (Supabase Storage)

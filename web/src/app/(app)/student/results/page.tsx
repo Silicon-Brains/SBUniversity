@@ -81,8 +81,8 @@ export default function StudentResultsPage() {
 
       await downloadAndOpenPdf(`/results/${result.id}/pdf`, filename, token ?? undefined);
       toast(`Result Statement opened in new tab and downloaded for ${examTitle}!`);
-    } catch (err: any) {
-      toast(err?.message || "Failed to download Result Statement.");
+    } catch (err: unknown) {
+      toast(err instanceof Error ? err.message : "Failed to download Result Statement.");
     } finally {
       setDownloadingId(null);
     }
@@ -120,7 +120,7 @@ export default function StudentResultsPage() {
           <FileCheck className="mx-auto h-12 w-12 text-cream-400" />
           <h3 className="mt-3 font-heading text-lg font-bold text-green-900">No Exam Results Yet</h3>
           <p className="mt-1 text-sm text-ink-muted">
-            You haven't completed any course examinations yet. Take an active exam to receive your official statement.
+            You haven&apos;t completed any course examinations yet. Take an active exam to receive your official statement.
           </p>
           <div className="mt-4">
             <Button href="/student/exams" variant="primary" size="sm">

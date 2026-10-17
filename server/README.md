@@ -128,10 +128,15 @@ This populates:
 
 ### 4. Running the Server
 
-Using UV or virtual environment:
+From the repository root, start the local SBUniversity API on port `8010`:
 ```bash
-uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+./scripts/run-local-backend.sh
 ```
+The launcher uses `server/.venv`, changes into `server/` before importing `app.main`,
+and avoids the common module collision with other installed projects also named `app`.
+Set `SBUNIVERSITY_API_PORT` to use a different local port. The web development server
+proxies local API calls to `http://127.0.0.1:8010/api/v1`; override that target with
+`LOCAL_API_PROXY_TARGET` if the API is on another local port.
 
 Using Docker:
 ```bash

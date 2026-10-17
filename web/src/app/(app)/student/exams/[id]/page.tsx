@@ -36,6 +36,17 @@ interface Question {
   options: QuestionOption[];
 }
 
+interface ExamAttemptResponse {
+  attempt_id: string;
+  expires_at: string;
+  questions: Question[];
+}
+
+interface ExamDetailsResponse {
+  title: string;
+  questions: Question[];
+}
+
 const FALLBACK_QUESTIONS: Question[] = [
   {
     id: "q1",
@@ -121,19 +132,19 @@ export default function ExamRunnerPage({ params }: { params: Promise<{ id: strin
         const examId = unwrappedParams.id;
 
         // Try start attempt on backend
-        const attemptRes = await api<any>(`/exams/${examId}/attempts`, token ?? undefined, {
+        const attemptRes = await api<ExamAttemptResponse>(`/exams/${examId}/attempts`, token ?? undefined, {
           method: "POST",
         }).catch(() => null);
 
         if (attemptRes && attemptRes.questions?.length > 0) {
           setAttemptId(attemptRes.attempt_id);
           setQuestions(
-            attemptRes.questions.map((q: any) => ({
+            attemptRes.questions.map((q) => ({
               id: q.id,
               position: q.position,
               text: q.text,
               marks: q.marks,
-              options: q.options.map((o: any) => ({
+              options: q.options.map((o) => ({
                 id: o.id,
                 position: o.position,
                 text: o.text,
@@ -149,16 +160,16 @@ export default function ExamRunnerPage({ params }: { params: Promise<{ id: strin
           }
         } else {
           // Try loading exam details
-          const examRes = await api<any>(`/exams/${examId}`, token ?? undefined).catch(() => null);
+          const examRes = await api<ExamDetailsResponse>(`/exams/${examId}`, token ?? undefined).catch(() => null);
           if (examRes?.title) setExamTitle(examRes.title);
-          if (examRes?.questions?.length > 0) {
+          if (examRes?.questions && examRes.questions.length > 0) {
             setQuestions(
-              examRes.questions.map((q: any) => ({
+              examRes.questions.map((q) => ({
                 id: q.id,
                 position: q.position,
                 text: q.text,
                 marks: q.marks,
-                options: q.options.map((o: any) => ({
+                options: q.options.map((o) => ({
                   id: o.id,
                   position: o.position,
                   text: o.text,

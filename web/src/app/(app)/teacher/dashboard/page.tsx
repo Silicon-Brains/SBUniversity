@@ -170,7 +170,7 @@ export default function TeacherDashboard() {
               </div>
             ) : exams.length === 0 ? (
               <div className="py-6 text-center text-xs text-ink-muted">
-                No active exams created yet. Click "Create Exam" to schedule your first assessment.
+                No active exams created yet. Click &quot;Create Exam&quot; to schedule your first assessment.
               </div>
             ) : (
               <div className="space-y-3">

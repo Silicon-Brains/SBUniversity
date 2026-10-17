@@ -25,6 +25,7 @@ from app.db.models.chat import (
     CommunityConversationKind,
     CommunityMessage,
 )
+from app.db.models.planner import PlannerEntry, PlannerEntryKind, PlannerNoteShape
 from app.db.models.audit import AuditLog
 
 __all__ = [
@@ -67,5 +68,8 @@ __all__ = [
     "CommunityConversation",
     "CommunityConversationKind",
     "CommunityMessage",
+    "PlannerEntry",
+    "PlannerEntryKind",
+    "PlannerNoteShape",
     "AuditLog",
 ]
